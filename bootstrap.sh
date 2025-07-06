@@ -4,7 +4,7 @@ cd "$(dirname "${BASH_SOURCE}")";
 
 git pull origin main;
 
-function doIt() {
+doIt() {
 	rsync --exclude ".git/" \
 		--exclude ".DS_Store" \
 		--exclude ".osx" \
@@ -15,7 +15,7 @@ function doIt() {
 	source ~/.bash_profile;
 }
 
-if [ "$1" == "--force" -o "$1" == "-f" ]; then
+if [ "$1" = "--force" ] || [ "$1" = "-f" ]; then
 	doIt;
 else
 	read -p "This may overwrite existing files in your home directory. Are you sure? (y/n) " -n 1;
