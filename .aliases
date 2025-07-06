@@ -146,3 +146,22 @@ alias reload="exec ${SHELL} -l"
 
 # Print each PATH entry on a separate line
 alias path='echo -e ${PATH//:/\\n}'
+
+# Custom aliases
+# Edit zsh configuration
+alias edit="vi ~/.zshrc"
+
+# iCloud directory navigation
+alias ic="cd \"$ICLOUD\""
+alias college="cd \"$ICLOUD/School/College\""
+alias sc="cd \"$ICLOUD/School/College/USC/super_senior\""
+alias film="cd \"$ICLOUD/Personal/photos/film_photography\""
+
+# Common directory shortcuts
+alias dw="cd \"$HOME/Downloads\""
+
+# Sublime Text shortcut
+alias s="/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"
+
+# YouTube downloader with optimized settings
+alias yt='yt-dlp -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]"'

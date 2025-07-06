@@ -1,4 +1,61 @@
-# Mathias’s dotfiles
+# Kevi## Installation
+
+**Warning:** These are my p### Specify the `$PATH`
+
+If `~/.path` ### Add custom commands without creating a new fork
+
+If `~/.extra` exists, it will be sourced along with the other files. You can use this to add a few custom commands without the need to fork this entire repository, or to add commands you don't want to commit to a public repository.
+
+Example `~/.extra` file:
+
+```bash
+# Git credentials
+# Not in the repository, to prevent people from accidentally committing under my name
+GIT_AUTHOR_NAME="Your Name"
+GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+git config --global user.name "$GIT_AUTHOR_NAME"
+GIT_AUTHOR_EMAIL="your.email@example.com"
+GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+git config --global user.email "$GIT_AUTHOR_EMAIL"
+```
+
+You could also use `~/.extra` to override settings, functions and aliases from this dotfiles repository. sourced along with the other files, before any feature testing (such as detecting which version of `ls` is being used) takes place.
+
+Here's an example `~/.path` file that adds `/usr/local/bin` to the `$PATH`:
+
+```bash
+export PATH="/usr/local/bin:$PATH"
+```
+
+## Custom Features
+
+### iCloud Integration
+These dotfiles include custom aliases for quick navigation to iCloud directories:
+
+- `ic` - Jump to iCloud Drive root
+- `college` - Navigate to School/College folder
+- `sc` - Navigate to USC/super_senior folder  
+- `film` - Navigate to Personal/photos/film_photography folder
+
+### Development Tools
+- `edit` - Quick edit of zsh configuration
+- `s` - Open files in Sublime Text
+- `yt` - YouTube downloader with optimized settings
+
+### Directory Shortcuts
+- `dw` - Navigate to Downloads folder
+
+The `$ICLOUD` environment variable is automatically set to your iCloud Drive path.otfiles. If you want to use them, you should first fork this repository, review the code, and remove things you don't want or need. Don't blindly use my settings unless you know what that entails. Use at your own risk!
+
+### Using Git and the bootstrap script
+
+You can clone the repository wherever you want. The bootstrapper script will pull in the latest version and copy the files to your home folder.
+
+```bash
+git clone https://github.com/kevinlee/dotfiles.git && cd dotfiles && source bootstrap.sh
+```s
+
+My customized macOS dotfiles for development and productivity.athias’s dotfiles
 
 ![Screenshot of my shell prompt](https://i.imgur.com/EkEtphC.png)
 
@@ -31,7 +88,7 @@ set -- -f; source bootstrap.sh
 To install these dotfiles without Git:
 
 ```bash
-cd; curl -#L https://github.com/mathiasbynens/dotfiles/tarball/main | tar -xzv --strip-components 1 --exclude={README.md,bootstrap.sh,.osx,LICENSE-MIT.txt}
+cd; curl -#L https://github.com/kevinlee/dotfiles/tarball/main | tar -xzv --strip-components 1 --exclude={README.md,bootstrap.sh,.osx,LICENSE-MIT.txt}
 ```
 
 To update later on, just run that command again.
@@ -85,16 +142,15 @@ Some of the functionality of these dotfiles depends on formulae installed by `br
 
 ## Feedback
 
-Suggestions/improvements
-[welcome](https://github.com/mathiasbynens/dotfiles/issues)!
+Suggestions/improvements welcome!
 
 ## Author
 
-| [![twitter/mathias](http://gravatar.com/avatar/24e08a9ea84deb17ae121074d0f17125?s=70)](http://twitter.com/mathias "Follow @mathias on Twitter") |
-|---|
-| [Mathias Bynens](https://mathiasbynens.be/) |
+Kevin Lee
 
 ## Thanks to…
+
+* [Mathias Bynens](https://mathiasbynens.be/) for the original dotfiles this is based on
 
 * @ptb and [his _macOS Setup_ repository](https://github.com/ptb/mac-setup)
 * [Ben Alman](http://benalman.com/) and his [dotfiles repository](https://github.com/cowboy/dotfiles)
