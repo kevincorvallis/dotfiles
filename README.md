@@ -10,6 +10,9 @@ git clone https://github.com/kevinlee/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 bash bootstrap.sh
 
+# Install Homebrew packages
+brew bundle --file=Brewfile
+
 # Load configuration (for zsh users)
 source ~/.zshrc
 ```
@@ -113,7 +116,8 @@ Quick navigation to iCloud directories:
 ├── .vimrc           # Vim configuration
 ├── .gitconfig       # Git configuration
 ├── bootstrap.sh     # Installation script
-├── brew.sh          # Homebrew packages installer
+├── Brewfile         # Homebrew formulae and taps
+├── brew.sh          # Homebrew installer (uses Brewfile)
 └── README.md        # This file
 ```
 
@@ -262,15 +266,19 @@ When setting up a new Mac, you may want to set some sensible macOS defaults:
 ./.macos
 ```
 
+This script sets the interface style to Dark by default. Pass `--no-dark-mode` or set `ENABLE_DARK_MODE=false` to keep the system's default appearance.
+
 ### Install Homebrew formulae
 
 When setting up a new Mac, you may want to install some common [Homebrew](https://brew.sh/) formulae (after installing Homebrew, of course):
 
 ```bash
+brew bundle --file=Brewfile
+# or
 ./brew.sh
 ```
 
-Some of the functionality of these dotfiles depends on formulae installed by `brew.sh`. If you don't plan to run `brew.sh`, you should look carefully through the script and manually install any particularly important ones. A good example is Bash/Git completion: the dotfiles use a special version from Homebrew.
+Some of the functionality of these dotfiles depends on formulae listed in the `Brewfile`. If you don't plan to use `brew bundle`, you should look carefully through the file and manually install any particularly important ones. A good example is Bash/Git completion: the dotfiles use a special version from Homebrew.
 
 ## Feedback
 
