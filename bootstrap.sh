@@ -5,6 +5,7 @@ cd "$(dirname "${BASH_SOURCE}")";
 git pull origin main;
 
 doIt() {
+	current_shell="$(echo "$SHELL")"
 	rsync --exclude ".git/" \
 		--exclude ".DS_Store" \
 		--exclude ".osx" \
@@ -12,7 +13,14 @@ doIt() {
 		--exclude "README.md" \
 		--exclude "LICENSE-MIT.txt" \
 		-avh --no-perms . ~;
-	source ~/.bash_profile;
+	if [[ "$current_shell" == *"zsh" ]]; then
+		if [ ! -e ~/.zshrc ]; then
+			ln -s ~/.bash_profile ~/.zshrc
+		fi
+		source ~/.zshrc
+	else
+		source ~/.bash_profile
+	fi
 }
 
 if [ "$1" = "--force" ] || [ "$1" = "-f" ]; then
