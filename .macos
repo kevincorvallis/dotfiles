@@ -23,7 +23,18 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 #sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "0x6D746873"
 
 # Disable the sound effects on boot
-sudo nvram SystemAudioVolume=" "
+# Pre-2016 Macs use `SystemAudioVolume`; newer machines use `StartupMute`.
+# Optionally detect the hardware model to apply the correct command.
+hardware_model=$(system_profiler SPHardwareDataType | awk -F': ' '/Model Identifier/ {print $2}')
+if [[ "$hardware_model" =~ ^MacBookPro1[0-2], ]] || \
+   [[ "$hardware_model" =~ ^MacBookAir[1-7], ]] || \
+   [[ "$hardware_model" =~ ^MacBook[1-8], ]]; then
+    # Older (pre-2016) Macs
+    sudo nvram SystemAudioVolume=" "
+else
+    # Newer Macs (2016 and later)
+    sudo nvram StartupMute=%01
+fi
 
 # Disable transparency in the menu bar and elsewhere on Yosemite
 defaults write com.apple.universalaccess reduceTransparency -bool true
