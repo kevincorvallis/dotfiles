@@ -12,6 +12,15 @@ sudo -v
 # Keep-alive: update existing `sudo` time stamp until `.macos` has finished
 while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 
+ENABLE_DARK_MODE=${ENABLE_DARK_MODE:-true}
+for arg in "$@"; do
+  case "$arg" in
+    --no-dark-mode)
+      ENABLE_DARK_MODE=false
+      ;;
+  esac
+done
+
 ###############################################################################
 # General UI/UX                                                               #
 ###############################################################################
@@ -30,6 +39,11 @@ defaults write com.apple.universalaccess reduceTransparency -bool true
 
 # Set highlight color to green
 defaults write NSGlobalDomain AppleHighlightColor -string "0.764700 0.976500 0.568600"
+
+if [ "$ENABLE_DARK_MODE" = true ]; then
+  # Set interface style to Dark (comment out to keep system default)
+  defaults write NSGlobalDomain AppleInterfaceStyle -string "Dark"
+fi
 
 # Set sidebar icon size to medium
 defaults write NSGlobalDomain NSTableViewDefaultSizeMode -int 2
