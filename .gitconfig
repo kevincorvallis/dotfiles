@@ -99,6 +99,20 @@
 	# https://git-scm.com/docs/git-update-index#_untracked_cache
 	untrackedCache = true
 
+	# Use delta for better diffs (if installed)
+	pager = delta
+
+[interactive]
+
+	diffFilter = delta --color-only
+
+[delta]
+
+	navigate = true
+	line-numbers = true
+	side-by-side = false
+	syntax-theme = Solarized (dark)
+
 [color]
 
 	# Use colors in Git commands that are capable of colored output when
@@ -133,6 +147,8 @@
 
 	# Detect copies as well as renames.
 	renames = copies
+	# Better diff algorithm for more readable diffs
+	colorMoved = default
 
 [diff "bin"]
 
@@ -148,6 +164,8 @@
 
 	# Include summaries of merged commits in newly created merge commit messages
 	log = true
+	# Show original code in conflicts (helps understand changes)
+	conflictstyle = diff3
 
 [push]
 

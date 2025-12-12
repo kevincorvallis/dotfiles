@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# Apple Silicon Homebrew PATH (must be early in the file)
+# Homebrew installs to /opt/homebrew on Apple Silicon Macs
+if [[ -d "/opt/homebrew" ]]; then
+	eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
 # Make vim the default editor.
 export EDITOR='vim';
 
@@ -38,3 +44,16 @@ export BASH_SILENCE_DEPRECATION_WARNING=1;
 
 # iCloud directory for custom aliases
 export ICLOUD="$HOME/Library/Mobile Documents/com~apple~CloudDocs";
+
+# Modern CLI tool configurations
+# fzf - fuzzy finder
+if command -v fzf &> /dev/null; then
+	export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+	export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+	export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
+fi
+
+# bat - syntax highlighting
+if command -v bat &> /dev/null; then
+	export BAT_THEME="Solarized (dark)"
+fi

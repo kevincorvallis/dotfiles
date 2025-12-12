@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(sw_vers:*)",
+      "Bash(xargs:*)"
+    ]
+  }
+}

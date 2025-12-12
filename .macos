@@ -4,7 +4,7 @@
 
 # Close any open System Preferences panes, to prevent them from overriding
 # settings we’re about to change
-osascript -e 'tell application "System Preferences" to quit'
+osascript -e 'tell application "System Settings" to quit'
 
 # Ask for the administrator password upfront
 sudo -v
@@ -121,15 +121,13 @@ defaults write com.apple.helpviewer DevMode -bool true
 # in the login window
 sudo defaults write /Library/Preferences/com.apple.loginwindow AdminHostInfo HostName
 
-# Disable Notification Center and remove the menu bar icon
-# Big Sur (11) renamed the agent to `usernoted`, so detect the macOS version
-# and unload the appropriate launch agent.
-macos_version="$(sw_vers -productVersion)"
-if [[ "${macos_version%%.*}" -ge 11 ]]; then
-  launchctl unload -w /System/Library/LaunchAgents/com.apple.usernoted.plist 2> /dev/null
-else
-  launchctl unload -w /System/Library/LaunchAgents/com.apple.notificationcenterui.plist 2> /dev/null
-fi
+# Note: Disabling Notification Center is no longer possible on modern macOS
+# due to System Integrity Protection (SIP). The launchctl commands below
+# will fail silently. Keeping commented for reference.
+# macos_version="$(sw_vers -productVersion)"
+# if [[ "${macos_version%%.*}" -ge 11 ]]; then
+#   launchctl bootout gui/$(id -u) /System/Library/LaunchAgents/com.apple.usernoted.plist 2> /dev/null
+# fi
 
 # Disable automatic capitalization as it’s annoying when typing code
 defaults write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
@@ -241,12 +239,11 @@ sudo systemsetup -setcomputersleep Off > /dev/null
 #    power failure.
 sudo pmset -a hibernatemode 0
 
-# Remove the sleep image file to save disk space
-sudo rm /private/var/vm/sleepimage
-# Create a zero-byte file instead…
-sudo touch /private/var/vm/sleepimage
-# …and make sure it can’t be rewritten
-sudo chflags uchg /private/var/vm/sleepimage
+# Note: Sleep image management is handled automatically on Apple Silicon Macs.
+# The commands below can conflict with modern power management and are skipped.
+# sudo rm /private/var/vm/sleepimage
+# sudo touch /private/var/vm/sleepimage
+# sudo chflags uchg /private/var/vm/sleepimage
 
 ###############################################################################
 # Screen                                                                      #
@@ -269,8 +266,8 @@ defaults write com.apple.screencapture disable-shadow -bool true
 # Reference: https://github.com/kevinSuttle/macOS-Defaults/issues/17#issuecomment-266633501
 defaults write NSGlobalDomain AppleFontSmoothing -int 1
 
-# Enable HiDPI display modes (requires restart)
-sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true
+# Note: HiDPI is native on Apple Silicon Macs - no configuration needed.
+# sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true
 
 ###############################################################################
 # Finder                                                                      #
@@ -388,7 +385,7 @@ defaults write com.apple.finder FXInfoPanesExpanded -dict \
 	Privileges -bool true
 
 ###############################################################################
-# Dock, Dashboard, and hot corners                                            #
+# Dock and hot corners                                                         #
 ###############################################################################
 
 # Enable highlight hover effect for the grid view of a stack (Dock)
@@ -427,13 +424,11 @@ defaults write com.apple.dock expose-animation-duration -float 0.1
 # (i.e. use the old Exposé behavior instead)
 defaults write com.apple.dock expose-group-by-app -bool false
 
-# Disable Dashboard
-defaults write com.apple.dashboard mcx-disabled -bool true
+# Note: Dashboard was removed in macOS Catalina (10.15)
+# defaults write com.apple.dashboard mcx-disabled -bool true
+# defaults write com.apple.dock dashboard-in-overlay -bool true
 
-# Don’t show Dashboard as a Space
-defaults write com.apple.dock dashboard-in-overlay -bool true
-
-# Don’t automatically rearrange Spaces based on most recent use
+# Don't automatically rearrange Spaces based on most recent use
 defaults write com.apple.dock mru-spaces -bool false
 
 # Remove the auto-hiding Dock delay
@@ -473,7 +468,6 @@ sudo ln -sf "/Applications/Xcode.app/Contents/Developer/Applications/Simulator (
 #  4: Desktop
 #  5: Start screen saver
 #  6: Disable screen saver
-#  7: Dashboard
 # 10: Put display to sleep
 # 11: Launchpad
 # 12: Notification Center
@@ -750,17 +744,11 @@ defaults write com.apple.ActivityMonitor SortColumn -string "CPUUsage"
 defaults write com.apple.ActivityMonitor SortDirection -int 0
 
 ###############################################################################
-# Address Book, Dashboard, iCal, TextEdit, and Disk Utility                   #
+# TextEdit and Disk Utility                                                    #
 ###############################################################################
 
-# Enable the debug menu in Address Book
-defaults write com.apple.addressbook ABShowDebugMenu -bool true
-
-# Enable Dashboard dev mode (allows keeping widgets on the desktop)
-defaults write com.apple.dashboard devmode -bool true
-
-# Enable the debug menu in iCal (pre-10.8)
-defaults write com.apple.iCal IncludeDebugMenu -bool true
+# Note: Address Book (now Contacts) and iCal (now Calendar) debug menus
+# are no longer accessible in modern macOS versions.
 
 # Use plain text mode for new TextEdit documents
 defaults write com.apple.TextEdit RichText -int 0
@@ -854,16 +842,6 @@ defaults write com.operasoftware.Opera PMPrintingExpandedStateForPrint2 -boolean
 defaults write com.operasoftware.OperaDeveloper PMPrintingExpandedStateForPrint2 -boolean true
 
 ###############################################################################
-# SizeUp.app                                                                  #
-###############################################################################
-
-# Start SizeUp at login
-defaults write com.irradiatedsoftware.SizeUp StartAtLogin -bool true
-
-# Don’t show the preferences window on next start
-defaults write com.irradiatedsoftware.SizeUp ShowPrefsOnNextStart -bool false
-
-###############################################################################
 # Sublime Text                                                                #
 ###############################################################################
 
@@ -871,11 +849,14 @@ defaults write com.irradiatedsoftware.SizeUp ShowPrefsOnNextStart -bool false
 cp -r init/Preferences.sublime-settings ~/Library/Application\ Support/Sublime\ Text*/Packages/User/Preferences.sublime-settings 2> /dev/null
 
 ###############################################################################
-# Spectacle.app                                                               #
+# Rectangle.app                                                               #
 ###############################################################################
 
-# Set up my preferred keyboard shortcuts
-cp -r init/spectacle.json ~/Library/Application\ Support/Spectacle/Shortcuts.json 2> /dev/null
+# Launch Rectangle at login
+defaults write com.knollsoft.Rectangle launchOnLogin -bool true
+
+# Hide menu bar icon (optional - uncomment if you want to hide it)
+# defaults write com.knollsoft.Rectangle hideMenubarIcon -bool true
 
 ###############################################################################
 # Transmission.app                                                            #
@@ -913,43 +894,10 @@ defaults write org.m0k.transmission BlocklistAutoUpdate -bool true
 defaults write org.m0k.transmission RandomPort -bool true
 
 ###############################################################################
-# Twitter.app                                                                 #
-###############################################################################
-
-# Disable smart quotes as it’s annoying for code tweets
-defaults write com.twitter.twitter-mac AutomaticQuoteSubstitutionEnabled -bool false
-
-# Show the app window when clicking the menu bar icon
-defaults write com.twitter.twitter-mac MenuItemBehavior -int 1
-
-# Enable the hidden ‘Develop’ menu
-defaults write com.twitter.twitter-mac ShowDevelopMenu -bool true
-
-# Open links in the background
-defaults write com.twitter.twitter-mac openLinksInBackground -bool true
-
-# Allow closing the ‘new tweet’ window by pressing `Esc`
-defaults write com.twitter.twitter-mac ESCClosesComposeWindow -bool true
-
-# Show full names rather than Twitter handles
-defaults write com.twitter.twitter-mac ShowFullNames -bool true
-
-# Hide the app in the background if it’s not the front-most window
-defaults write com.twitter.twitter-mac HideInBackground -bool true
-
-###############################################################################
-# Tweetbot.app                                                                #
-###############################################################################
-
-# Bypass the annoyingly slow t.co URL shortener
-defaults write com.tapbots.TweetbotMac OpenURLsDirectly -bool true
-
-###############################################################################
 # Kill affected applications                                                  #
 ###############################################################################
 
 for app in "Activity Monitor" \
-	"Address Book" \
 	"Calendar" \
 	"cfprefsd" \
 	"Contacts" \
@@ -961,15 +909,11 @@ for app in "Activity Monitor" \
 	"Messages" \
 	"Opera" \
 	"Photos" \
+	"Rectangle" \
 	"Safari" \
-	"SizeUp" \
-	"Spectacle" \
 	"SystemUIServer" \
 	"Terminal" \
-	"Transmission" \
-	"Tweetbot" \
-	"Twitter" \
-	"iCal"; do
+	"Transmission"; do
 	killall "${app}" &> /dev/null
 done
 echo "Done. Note that some of these changes require a logout/restart to take effect."

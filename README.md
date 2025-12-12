@@ -1,310 +1,342 @@
 # Kevin's dotfiles
 
-My customized macOS dotfiles for development and productivity, based on Mathias Bynens' excellent dotfiles with personal customizations for zsh and iCloud workflows.
+Modern macOS dotfiles optimized for Apple Silicon, featuring a curated set of CLI tools and sensible defaults. Based on Mathias Bynens' dotfiles with significant modernization.
 
-## Quick Start (TL;DR)
+## Quick Start
 
 ```bash
-# Clone and install
+# Clone the repo
 git clone https://github.com/kevinlee/dotfiles.git ~/dotfiles
 cd ~/dotfiles
+
+# Install dotfiles
 bash bootstrap.sh
 
 # Install Homebrew packages
 brew bundle --file=Brewfile
 
-# Load configuration (for zsh users)
+# Apply macOS settings (optional)
+./.macos
+
+# Reload shell
 source ~/.zshrc
 ```
+
+## What's Included
+
+### Modern CLI Tools
+
+| Tool | Description | Alias |
+|------|-------------|-------|
+| `eza` | Modern `ls` replacement | `ls`, `l`, `la`, `ll`, `lt` |
+| `bat` | Better `cat` with syntax highlighting | `cat`, `catp` |
+| `ripgrep` | Fast grep alternative | `rg`, `rgi` |
+| `fd` | Fast find alternative | `fd`, `fdi` |
+| `fzf` | Fuzzy finder | - |
+| `git-delta` | Beautiful git diffs | automatic |
+| `gh` | GitHub CLI | - |
+| `htop` | Interactive process viewer | - |
+| `jq` | JSON processor | - |
+| `tldr` | Simplified man pages | - |
+
+### Window Management
+
+- **Rectangle** - Keyboard-driven window management (replaces Spectacle)
+
+### Shell Features
+
+- Apple Silicon Homebrew support (`/opt/homebrew`)
+- Git-aware prompt with branch and status
+- Extensive aliases for navigation and utilities
+- Python 3 compatible functions
+- iCloud directory shortcuts
 
 ## Installation
 
 ### Prerequisites
-- macOS (tested on macOS 15+)
-- Git
-- zsh (default shell on modern macOS)
 
-### Full Installation
+- macOS Sonoma/Sequoia (Apple Silicon)
+- [Homebrew](https://brew.sh)
+- zsh (default on modern macOS)
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/kevinlee/dotfiles.git ~/dotfiles
-   cd ~/dotfiles
-   ```
+### Fresh Install
 
-2. **Review the files** (IMPORTANT - don't skip this step):
-   ```bash
-   # Check what will be installed
-   ls -la
-   cat .aliases    # See all aliases
-   cat .exports    # See environment variables
-   cat .functions  # See custom functions
-   ```
-
-3. **Install the dotfiles:**
-   ```bash
-   bash bootstrap.sh
-   ```
-   This will:
-   - Pull latest changes from GitHub
-   - Copy all dotfiles to your home directory
-   - Ask for confirmation before overwriting existing files
-
-4. **Set up zsh configuration:**
-   ```bash
-   source ~/.zshrc
-   ```
-
-### Verification
-
-Test that everything is working:
 ```bash
-# Test custom aliases
-ic          # Should navigate to iCloud Drive
-college     # Should navigate to School/College folder
-edit        # Should open ~/.zshrc in vi
-s .         # Should open current directory in Sublime Text
+# 1. Clone repository
+git clone https://github.com/kevinlee/dotfiles.git ~/dotfiles
+cd ~/dotfiles
 
-# Test environment variables
-echo $ICLOUD    # Should show your iCloud path
+# 2. Review files before installing
+cat .aliases      # Check aliases
+cat .exports      # Check environment variables
 
-# Test other aliases
-l           # Enhanced ls with colors
-ip          # Show external IP
-update      # Update all system packages
+# 3. Run bootstrap (copies files to ~/)
+bash bootstrap.sh
+
+# 4. Install packages
+brew bundle --file=Brewfile
+
+# 5. Apply macOS preferences (optional but recommended)
+./.macos
+
+# 6. Reload shell
+source ~/.zshrc
 ```
 
-## Custom Features
+### Updating Existing Installation
 
-### iCloud Integration
-Quick navigation to iCloud directories:
-- `ic` - Jump to iCloud Drive root (`~/Library/Mobile Documents/com~apple~CloudDocs`)
-- `college` - Navigate to `$ICLOUD/School/College`
-- `sc` - Navigate to `$ICLOUD/School/College/USC/super_senior`
-- `film` - Navigate to `$ICLOUD/Personal/photos/film_photography`
+If you already have an older version installed:
 
-### Development Tools
-- `edit` - Quick edit of zsh configuration (`vi ~/.zshrc`)
-- `s [file/directory]` - Open files/directories in Sublime Text
-- `yt [url]` - Download YouTube videos with optimized settings (requires `yt-dlp`)
+```bash
+cd ~/dotfiles
 
-### Directory Navigation
-- `dw` - Navigate to Downloads folder
-- `..`, `...`, `....` - Navigate up 1, 2, 3 directories
-- `p` - Navigate to ~/projects
-- `dt` - Navigate to Desktop
-- `dl` - Navigate to Downloads
+# Pull latest changes
+git pull origin main
+
+# Re-run bootstrap to copy updated files
+bash bootstrap.sh --force
+
+# Update/install new Homebrew packages
+brew bundle --file=Brewfile
+
+# Reload shell configuration
+source ~/.zshrc
+
+# Optional: Re-apply macOS settings
+./.macos
+```
+
+## Aliases & Commands
+
+### Navigation
+
+| Command | Action |
+|---------|--------|
+| `..` | Go up one directory |
+| `...` | Go up two directories |
+| `....` | Go up three directories |
+| `p` | `cd ~/projects` |
+| `dl` | `cd ~/Downloads` |
+| `dt` | `cd ~/Desktop` |
+| `ic` | `cd` to iCloud Drive |
+
+### File Listing (eza)
+
+| Command | Action |
+|---------|--------|
+| `ls` | List files (eza) |
+| `l` | Long listing |
+| `la` | Long listing with hidden files |
+| `ll` | Same as `la` |
+| `lt` | Tree view (2 levels) |
+| `lsd` | List directories only |
 
 ### System Utilities
-- `update` - Update macOS, Homebrew, npm, gems all at once
-- `cleanup` - Remove .DS_Store files recursively
-- `emptytrash` - Empty trash + clear system logs
-- `flush` - Clear DNS cache
-- `ip` - Show external IP address
-- `localip` - Show local IP address
+
+| Command | Action |
+|---------|--------|
+| `update` | Update macOS, Homebrew, npm, gems |
+| `cleanup` | Delete `.DS_Store` files recursively |
+| `emptytrash` | Empty trash and clear system logs |
+| `flush` | Flush DNS cache |
+| `afk` | Lock screen |
+| `reload` | Reload shell configuration |
+
+### Network
+
+| Command | Action |
+|---------|--------|
+| `ip` | External IP address |
+| `localip` | Local IP address |
+| `ips` | All IP addresses |
+
+### Development
+
+| Command | Action |
+|---------|--------|
+| `g` | Git |
+| `s <file>` | Open in Sublime Text |
+| `server` | Start Python HTTP server (port 8000) |
+| `yt <url>` | Download YouTube video |
+
+### Finder
+
+| Command | Action |
+|---------|--------|
+| `show` | Show hidden files in Finder |
+| `hide` | Hide hidden files in Finder |
+| `hidedesktop` | Hide desktop icons |
+| `showdesktop` | Show desktop icons |
 
 ## File Structure
 
 ```
 ~/dotfiles/
-├── .aliases          # All command aliases (including custom ones)
-├── .exports          # Environment variables (including $ICLOUD)
-├── .functions        # Custom shell functions
-├── .bash_profile     # Main bash configuration
-├── .bash_prompt      # Custom prompt (works in zsh too)
-├── .zshrc           # zsh configuration (created during setup)
-├── .vimrc           # Vim configuration
-├── .gitconfig       # Git configuration
-├── bootstrap.sh     # Installation script
-├── Brewfile         # Homebrew formulae and taps
-├── brew.sh          # Homebrew installer (uses Brewfile)
-└── README.md        # This file
-```
-
-## Configuration Files Explained
-
-### `.zshrc` (Main zsh config)
-- Loads all dotfiles components
-- Sets up zsh-specific features (history, completion, etc.)
-- Compatible with the bash-based dotfiles
-
-### `.aliases` (Command shortcuts)
-- Custom iCloud navigation aliases
-- System utilities
-- Development tools
-- All standard Unix/macOS aliases
-
-### `.exports` (Environment variables)
-- `$ICLOUD` - Path to iCloud Drive
-- `$EDITOR` - Default editor (vim)
-- History settings
-- Language settings
-
-## Updating
-
-To update your dotfiles:
-```bash
-cd ~/dotfiles
-bash bootstrap.sh
-source ~/.zshrc  # Reload configuration
+├── .aliases          # Command aliases (eza, bat, navigation)
+├── .bash_profile     # Main shell configuration loader
+├── .bash_prompt      # Git-aware prompt (Solarized)
+├── .exports          # Environment variables + Homebrew PATH
+├── .functions        # Shell functions (server, mkd, etc.)
+├── .gitconfig        # Git config with delta integration
+├── .gitignore        # Global gitignore
+├── .macos            # macOS system preferences
+├── .vimrc            # Vim configuration (Solarized Dark)
+├── .zshrc            # Sources .bash_profile
+├── Brewfile          # Homebrew packages
+├── bootstrap.sh      # Installation script
+└── init/
+    ├── Solarized Dark.itermcolors
+    ├── Solarized Dark xterm-256color.terminal
+    └── Preferences.sublime-settings
 ```
 
 ## Customization
 
-### Adding Your Own Aliases
-1. Edit `~/.aliases` to add permanent aliases
-2. Or create `~/.extra` for private/temporary customizations
+### Private Settings
 
-### Adding New iCloud Shortcuts
-Add to `.aliases`:
-```bash
-alias myproject="cd \"$ICLOUD/Projects/MyProject\""
-```
-
-### Override Settings
-Create `~/.extra` file:
-```bash
-# Private settings not committed to repo
-export CUSTOM_VAR="value"
-alias secret="echo 'private command'"
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**"Command not found" errors:**
-```bash
-# Reload configuration
-source ~/.zshrc
-# Or restart terminal
-```
-
-**iCloud aliases not working:**
-```bash
-# Check if ICLOUD variable is set
-echo $ICLOUD
-# Should show: /Users/[username]/Library/Mobile Documents/com~apple~CloudDocs
-```
-
-**Sublime Text alias not working:**
-```bash
-# Check if Sublime Text is installed in Applications
-ls -la "/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"
-```
-
-**Bootstrap script errors:**
-```bash
-# Use bash explicitly (not zsh)
-bash bootstrap.sh
-# Not: source bootstrap.sh
-```
-
-### Resetting Everything
-If something goes wrong:
-```bash
-# Backup your current config
-cp ~/.zshrc ~/.zshrc.backup
-
-# Re-run bootstrap
-cd ~/dotfiles
-bash bootstrap.sh
-
-# Reload
-source ~/.zshrc
-```
-
-## What This Setup Gives You
-
-1. **Efficient Navigation**: Jump to common directories instantly
-2. **Development Workflow**: Quick file editing, git shortcuts
-3. **System Maintenance**: One-command updates and cleanup
-4. **iCloud Integration**: Seamless access to cloud-synced files
-5. **Zsh Optimization**: Modern shell with intelligent completion
-6. **Consistent Environment**: Same setup across multiple machines
-
-## Dependencies
-
-These tools enhance the experience but aren't required:
-- `yt-dlp` - For YouTube downloading (`brew install yt-dlp`)
-- `Sublime Text` - For the `s` alias
-- `Homebrew` - For package management (`/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`)
-
-## Future Setup Notes
-
-When setting up on a new machine:
-1. Install Homebrew first
-2. Install Git and configure GitHub access
-3. Clone this repo and run bootstrap
-4. Install additional tools (yt-dlp, Sublime Text, etc.)
-5. Create ~/.extra for machine-specific settings
-
-## Add custom commands without creating a new fork
-
-If `~/.extra` exists, it will be sourced along with the other files. You can use this to add a few custom commands without the need to fork this entire repository, or to add commands you don't want to commit to a public repository.
-
-Example `~/.extra` file:
+Create `~/.extra` for settings you don't want to commit:
 
 ```bash
 # Git credentials
-# Not in the repository, to prevent people from accidentally committing under my name
 GIT_AUTHOR_NAME="Your Name"
 GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
 git config --global user.name "$GIT_AUTHOR_NAME"
-GIT_AUTHOR_EMAIL="your.email@example.com"
+GIT_AUTHOR_EMAIL="your@email.com"
 GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 git config --global user.email "$GIT_AUTHOR_EMAIL"
+
+# Custom aliases
+alias myproject="cd ~/projects/myproject"
 ```
 
-You could also use `~/.extra` to override settings, functions and aliases from this dotfiles repository.
+### Adding Aliases
 
-### Sensible macOS defaults
-
-When setting up a new Mac, you may want to set some sensible macOS defaults:
+Edit `.aliases` directly or add to `~/.extra`:
 
 ```bash
+alias myalias="my command here"
+```
+
+### macOS Settings
+
+The `.macos` script configures system preferences. Key settings:
+
+- Dark mode (pass `--no-dark-mode` to disable)
+- Fast keyboard repeat
+- Tap to click on trackpad
+- Show file extensions
+- Disable auto-correct
+- Rectangle window management
+
+Review and customize before running:
+
+```bash
+# Review the script
+less .macos
+
+# Run with dark mode
 ./.macos
+
+# Run without dark mode
+./.macos --no-dark-mode
 ```
 
-This script sets the interface style to Dark by default. Pass `--no-dark-mode` or set `ENABLE_DARK_MODE=false` to keep the system's default appearance.
+## Homebrew Packages
 
-### Install Homebrew formulae
+The `Brewfile` installs:
 
-When setting up a new Mac, you may want to install some common [Homebrew](https://brew.sh/) formulae (after installing Homebrew, of course):
+**Core Utilities**
+- coreutils, findutils, gnu-sed, grep
+- bash, bash-completion2
+- vim, wget, openssh
+
+**Modern CLI**
+- gh, fzf, ripgrep, bat, eza
+- git-delta, fd, tldr, htop, jq
+
+**Development**
+- git, git-lfs, php, lua
+
+**Other**
+- imagemagick, p7zip, pigz, tree, zopfli
+
+**Apps**
+- Rectangle (window management)
+
+## Troubleshooting
+
+### Commands not found after install
 
 ```bash
-brew bundle --file=Brewfile
-# or
-./brew.sh
+# Reload shell
+source ~/.zshrc
+
+# Or restart terminal
 ```
 
-Some of the functionality of these dotfiles depends on formulae listed in the `Brewfile`. If you don't plan to use `brew bundle`, you should look carefully through the file and manually install any particularly important ones. A good example is Bash/Git completion: the dotfiles use a special version from Homebrew.
+### Homebrew not in PATH (Apple Silicon)
 
-## Feedback
+The `.exports` file should handle this, but if not:
 
-Suggestions/improvements welcome!
+```bash
+# Add to ~/.zshrc or ~/.extra
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
 
-## Author
+### eza/bat/etc not working
 
-Kevin Lee
+```bash
+# Install the packages
+brew bundle --file=Brewfile
 
-## Thanks to…
+# Verify installation
+which eza bat rg fd
+```
 
-* [Mathias Bynens](https://mathiasbynens.be/) for the original dotfiles this is based on
-* @ptb and [his _macOS Setup_ repository](https://github.com/ptb/mac-setup)
-* [Ben Alman](http://benalman.com/) and his [dotfiles repository](https://github.com/cowboy/dotfiles)
-* [Cătălin Mariș](https://github.com/alrra) and his [dotfiles repository](https://github.com/alrra/dotfiles)
-* [Gianni Chiappetta](https://butt.zone/) for sharing his [amazing collection of dotfiles](https://github.com/gf3/dotfiles)
-* [Jan Moesen](http://jan.moesen.nu/) and his [ancient `.bash_profile`](https://gist.github.com/1156154) + [shiny _tilde_ repository](https://github.com/janmoesen/tilde)
-* Lauri 'Lri' Ranta for sharing [loads of hidden preferences](https://web.archive.org/web/20161104144204/http://osxnotes.net/defaults.html)
-* [Matijs Brinkhuis](https://matijs.brinkhu.is/) and his [dotfiles repository](https://github.com/matijs/dotfiles)
-* [Nicolas Gallagher](http://nicolasgallagher.com/) and his [dotfiles repository](https://github.com/necolas/dotfiles)
-* [Sindre Sorhus](https://sindresorhus.com/)
-* [Tom Ryder](https://sanctum.geek.nz/) and his [dotfiles repository](https://sanctum.geek.nz/cgit/dotfiles.git/about)
-* [Kevin Suttle](http://kevinsuttle.com/) and his [dotfiles repository](https://github.com/kevinSuttle/dotfiles) and [macOS-Defaults project](https://github.com/kevinSuttle/macOS-Defaults), which aims to provide better documentation for [`~/.macos`](https://mths.be/macos)
-* [Haralan Dobrev](https://hkdobrev.com/)
-* Anyone who [contributed a patch](https://github.com/mathiasbynens/dotfiles/contributors) or [made a helpful suggestion](https://github.com/mathiasbynens/dotfiles/issues)
+### Git delta not showing
+
+Delta requires configuration in `.gitconfig`. If you had a previous `.gitconfig`, you may need to merge the delta settings:
+
+```ini
+[core]
+    pager = delta
+
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    navigate = true
+    line-numbers = true
+    syntax-theme = Solarized (dark)
+```
+
+### macOS settings not applying
+
+Some settings require:
+- Logout/login
+- Full restart
+- Closing affected apps
+
+## Requirements
+
+- macOS 14+ (Sonoma) or macOS 15+ (Sequoia)
+- Apple Silicon Mac (M1/M2/M3/M4)
+- Homebrew
+- Git
+
+## Credits
+
+Based on [Mathias Bynens' dotfiles](https://github.com/mathiasbynens/dotfiles) with modernization for:
+- Apple Silicon compatibility
+- Modern CLI tools (eza, bat, ripgrep, fd, delta)
+- macOS Sonoma/Sequoia support
+- Rectangle window management
+- Python 3 compatibility
+
+## License
+
+MIT
 
 ---
 
-*Last updated: July 2025*
+*Last updated: December 2024*
