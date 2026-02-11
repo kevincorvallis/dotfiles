@@ -802,16 +802,6 @@ defaults write com.google.Chrome PMPrintingExpandedStateForPrint2 -bool true
 defaults write com.google.Chrome.canary PMPrintingExpandedStateForPrint2 -bool true
 
 ###############################################################################
-# Rectangle.app                                                               #
-###############################################################################
-
-# Launch Rectangle at login
-defaults write com.knollsoft.Rectangle launchOnLogin -bool true
-
-# Hide menu bar icon (optional - uncomment if you want to hide it)
-# defaults write com.knollsoft.Rectangle hideMenubarIcon -bool true
-
-###############################################################################
 # Kill affected applications                                                  #
 ###############################################################################
 
@@ -826,7 +816,6 @@ for app in "Activity Monitor" \
 	"Mail" \
 	"Messages" \
 	"Photos" \
-	"Rectangle" \
 	"Safari" \
 	"SystemUIServer" \
 	"Terminal"; do

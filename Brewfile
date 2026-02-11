@@ -50,6 +50,3 @@ brew "ssh-copy-id"
 brew "tree"
 brew "vbindiff"
 brew "zopfli"
-
-# Casks
-cask "rectangle"    # Window management
