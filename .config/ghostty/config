@@ -1,6 +1,6 @@
 # --- Theme ---
 # Auto-switch between dark/light based on macOS appearance
-theme = dark:Darkmatrix,light:Catppuccin Mocha
+theme = dark:Retro Legends,light:Catppuccin Mocha
 
 # --- Font ---
 font-family = "JetBrainsMono Nerd Font Mono"
