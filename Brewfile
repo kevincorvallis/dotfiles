@@ -58,6 +58,14 @@ brew "tree"
 brew "vbindiff"
 brew "zopfli"
 
+# Fonts (Nerd Font variants for terminal icons)
+cask "font-jetbrains-mono-nerd-font"
+cask "font-fira-code-nerd-font"
+cask "font-monaspace-nf"
+cask "font-caskaydia-mono-nerd-font"
+cask "font-victor-mono-nerd-font"
+cask "font-geist-mono-nerd-font"
+
 # Casks
 cask "ghostty"      # Terminal emulator
 cask "rectangle"    # Window management
