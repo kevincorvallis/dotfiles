@@ -9,12 +9,8 @@ set nocompatible
 set clipboard=unnamed
 " Enhance command-line completion
 set wildmenu
-" Allow cursor keys in insert mode
-set esckeys
 " Allow backspace in insert mode
 set backspace=indent,eol,start
-" Optimize for fast terminal connections
-set ttyfast
 " Add the g flag to search/replace by default
 set gdefault
 " Use UTF-8 without BOM
@@ -99,8 +95,8 @@ noremap <leader>W :w !sudo tee % > /dev/null<CR>
 if has("autocmd")
 	" Enable file type detection
 	filetype on
-	" Treat .json files as .js
-	autocmd BufNewFile,BufRead *.json setfiletype json syntax=javascript
+	" Treat .json files as JSON (native syntax support in modern Vim)
+	autocmd BufNewFile,BufRead *.json setfiletype json
 	" Treat .md files as Markdown
 	autocmd BufNewFile,BufRead *.md setlocal filetype=markdown
 endif

@@ -3,10 +3,15 @@ export PATH="$HOME/bin:$PATH";
 
 # Load the shell dotfiles, and then some:
 # * ~/.path can be used to extend `$PATH`.
-# * ~/.extra can be used for other settings you don’t want to commit.
-for file in ~/.{path,bash_prompt,exports,aliases,functions,extra}; do
+# * ~/.extra can be used for other settings you don't want to commit.
+# Note: ~/.bash_prompt is skipped when starship is installed (starship replaces it).
+for file in ~/.{path,exports,aliases,functions,extra}; do
 	[ -r "$file" ] && [ -f "$file" ] && source "$file";
 done;
+# Load legacy bash prompt only if starship is not available
+if ! command -v starship &> /dev/null; then
+	[ -r ~/.bash_prompt ] && [ -f ~/.bash_prompt ] && source ~/.bash_prompt;
+fi;
 unset file;
 
 # Case-insensitive globbing (used in pathname expansion)
@@ -47,4 +52,4 @@ fi;
 complete -W "NSGlobalDomain" defaults;
 
 # Add `killall` tab completion for common apps
-complete -o "nospace" -W "Contacts Calendar Dock Finder Mail Safari iTunes SystemUIServer Terminal Twitter" killall;
+complete -o "nospace" -W "Contacts Calendar Dock Finder Mail Safari Music SystemUIServer Terminal" killall;
