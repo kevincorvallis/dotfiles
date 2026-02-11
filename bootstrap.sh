@@ -7,12 +7,23 @@ git pull origin main;
 doIt() {
 	current_shell="$(echo "$SHELL")"
 	rsync --exclude ".git/" \
+		--exclude ".claude/" \
+		--exclude ".config/" \
 		--exclude ".DS_Store" \
 		--exclude ".osx" \
 		--exclude "bootstrap.sh" \
+		--exclude "brew.sh" \
+		--exclude "Brewfile" \
 		--exclude "README.md" \
+		--exclude "COMMANDS_GUIDE.md" \
+		--exclude "CUSTOMIZATION_CHECKLIST.md" \
 		--exclude "LICENSE-MIT.txt" \
 		-avh --no-perms . ~;
+	# Deploy Ghostty config to its expected location
+	if [ -d ".config/ghostty" ]; then
+		mkdir -p ~/Library/Application\ Support/com.mitchellh.ghostty
+		cp .config/ghostty/config ~/Library/Application\ Support/com.mitchellh.ghostty/config
+	fi
 	if [[ "$current_shell" == *"zsh" ]]; then
 		if [ ! -e ~/.zshrc ]; then
 			ln -s ~/.bash_profile ~/.zshrc

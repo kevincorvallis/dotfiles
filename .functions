@@ -79,17 +79,16 @@ function dataurl() {
 function server() {
 	local port="${1:-8000}";
 	sleep 1 && open "http://localhost:${port}/" &
-	# Python 3 simple HTTP server
-	python3 -m http.server "$port";
+	# Python 3 simple HTTP server (bound to localhost only)
+	python3 -m http.server --bind 127.0.0.1 "$port";
 }
 
 # Start a PHP server from a directory, optionally specifying the port
 # (Requires PHP 5.4.0+.)
 function phpserver() {
 	local port="${1:-4000}";
-	local ip=$(ipconfig getifaddr en1);
-	sleep 1 && open "http://${ip}:${port}/" &
-	php -S "${ip}:${port}";
+	sleep 1 && open "http://localhost:${port}/" &
+	php -S "127.0.0.1:${port}";
 }
 
 # Compare original and gzipped file size

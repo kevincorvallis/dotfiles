@@ -1,1 +1,2 @@
-[ -n "$PS1" ] && source ~/.bash_profile;
+# ~/.bashrc - Sources bash_profile for interactive bash shells
+[[ -f ~/.bash_profile ]] && source ~/.bash_profile

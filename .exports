@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 
-# Apple Silicon Homebrew PATH (must be early in the file)
-# Homebrew installs to /opt/homebrew on Apple Silicon Macs
-if [[ -d "/opt/homebrew" ]]; then
-	eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
-
 # Make vim the default editor.
 export EDITOR='vim';
 
@@ -24,23 +18,18 @@ export HISTSIZE='32768';
 export HISTFILESIZE="${HISTSIZE}";
 # Omit duplicates and commands that begin with a space from history.
 export HISTCONTROL='ignoreboth';
+# Don't record commands that look like they contain sensitive data.
+export HISTIGNORE='*password*:*secret*:*token*:*key*:*API_KEY*:export *TOKEN*:export *SECRET*';
 
 # Prefer US English and use UTF-8.
 export LANG='en_US.UTF-8';
 export LC_ALL='en_US.UTF-8';
 
-# Highlight section titles in manual pages.
-export LESS_TERMCAP_md="${yellow}";
+# Highlight section titles in manual pages (bold yellow).
+export LESS_TERMCAP_md=$'\e[1;33m';
 
 # Don’t clear the screen after quitting a manual page.
 export MANPAGER='less -X';
-
-# Avoid issues with `gpg` as installed via Homebrew.
-# https://stackoverflow.com/a/42265848/96656
-export GPG_TTY=$(tty);
-
-# Hide the "default interactive shell is now zsh" warning on macOS.
-export BASH_SILENCE_DEPRECATION_WARNING=1;
 
 # iCloud directory for custom aliases
 export ICLOUD="$HOME/Library/Mobile Documents/com~apple~CloudDocs";

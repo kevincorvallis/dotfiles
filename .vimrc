@@ -34,12 +34,10 @@ endif
 " Don’t create backups when editing files in certain directories
 set backupskip=/tmp/*,/private/tmp/*
 
-" Respect modeline in files
-set modeline
-set modelines=4
-" Enable per-directory .vimrc files and disable unsafe commands in them
-set exrc
-set secure
+" Disable modelines (CVE-2019-12735 and similar exploits)
+set nomodeline
+" Disable per-directory .vimrc files (prevents arbitrary code execution)
+set noexrc
 " Enable line numbers
 set number
 " Enable syntax highlighting

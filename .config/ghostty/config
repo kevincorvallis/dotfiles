@@ -1,0 +1,44 @@
+# --- Theme ---
+# Auto-switch between dark/light based on macOS appearance
+theme = dark:Darkmatrix,light:Catppuccin Mocha
+
+# --- Font ---
+font-family = "JetBrainsMono Nerd Font Mono"
+font-size = 14
+font-thicken = true
+bold-is-bright = true
+
+# --- Cursor ---
+cursor-style = block
+cursor-style-blink = false
+
+# --- Window look/feel ---
+window-padding-x = 10
+window-padding-y = 10
+background-opacity = 0.95
+background-blur = 12
+window-vsync = true
+window-decoration = false
+
+# --- Clipboard ---
+copy-on-select = clipboard
+
+# --- Scrollback ---
+scrollback-limit = 20000
+mouse-scroll-multiplier = 1.0
+
+# --- Shell integration ---
+shell-integration = detect
+
+# --- macOS niceties ---
+macos-titlebar-style = tabs
+macos-option-as-alt = true
+window-save-state = never
+
+# --- Safety: ask before closing a running program ---
+confirm-close-surface = true
+
+# --- Keybinds ---
+keybind = cmd+shift+c=copy_to_clipboard
+keybind = cmd+shift+v=paste_from_clipboard
+keybind = cmd+shift+k=clear_screen

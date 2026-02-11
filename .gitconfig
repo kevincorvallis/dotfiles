@@ -138,11 +138,6 @@
 	changed = green
 	untracked = cyan
 
-[commit]
-
-	# https://help.github.com/articles/signing-commits-using-gpg/
-	gpgsign = true
-
 [diff]
 
 	# Detect copies as well as renames.
@@ -157,8 +152,8 @@
 
 [help]
 
-	# Automatically correct and execute mistyped commands.
-	autocorrect = 1
+	# Suggest corrections for mistyped commands (2s delay to Ctrl+C).
+	autocorrect = 20
 
 [merge]
 
@@ -179,22 +174,14 @@
 [url "git@github.com:"]
 
 	insteadOf = "gh:"
-	pushInsteadOf = "github:"
-	pushInsteadOf = "git://github.com/"
-
-[url "git://github.com/"]
-
 	insteadOf = "github:"
+	pushInsteadOf = "git://github.com/"
 
 [url "git@gist.github.com:"]
 
 	insteadOf = "gst:"
-	pushInsteadOf = "gist:"
-	pushInsteadOf = "git://gist.github.com/"
-
-[url "git://gist.github.com/"]
-
 	insteadOf = "gist:"
+	pushInsteadOf = "git://gist.github.com/"
 
 [init]
 

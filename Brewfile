@@ -59,4 +59,5 @@ brew "vbindiff"
 brew "zopfli"
 
 # Casks
+cask "ghostty"      # Terminal emulator
 cask "rectangle"    # Window management
