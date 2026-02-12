@@ -26,13 +26,10 @@ done
 ###############################################################################
 
 # Set computer name (as done via System Preferences → Sharing)
-# Uncomment and set these to prevent macOS from auto-renaming (e.g. brock.local-2)
-# when running systemsetup commands or encountering mDNS conflicts.
-#COMPUTER_NAME="brock"
-#sudo scutil --set ComputerName "$COMPUTER_NAME"
-#sudo scutil --set HostName "$COMPUTER_NAME"
-#sudo scutil --set LocalHostName "$COMPUTER_NAME"
-#sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "$COMPUTER_NAME"
+#sudo scutil --set ComputerName "0x6D746873"
+#sudo scutil --set HostName "0x6D746873"
+#sudo scutil --set LocalHostName "0x6D746873"
+#sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "0x6D746873"
 
 # Disable the sound effects on boot
 # Pre-2016 Macs use `SystemAudioVolume`; newer machines use `StartupMute`.
@@ -203,7 +200,8 @@ defaults write NSGlobalDomain AppleMetricUnits -bool false
 sudo defaults write /Library/Preferences/com.apple.loginwindow showInputMenu -bool true
 
 # Set the timezone; see `sudo systemsetup -listtimezones` for other values
-sudo systemsetup -settimezone "America/New_York" > /dev/null
+# Removed: sudo systemsetup can trigger mDNS hostname conflicts (e.g. brock.local-2)
+# Set timezone manually: sudo systemsetup -settimezone "America/New_York"
 
 # Stop iTunes from responding to the keyboard media keys
 #launchctl unload -w /System/Library/LaunchAgents/com.apple.rcd.plist 2> /dev/null
@@ -219,7 +217,8 @@ sudo pmset -a lidwake 1
 sudo pmset -a autorestart 1
 
 # Restart automatically if the computer freezes
-sudo systemsetup -setrestartfreeze on
+# Removed: sudo systemsetup can trigger mDNS hostname conflicts
+# Run manually: sudo systemsetup -setrestartfreeze on
 
 # Sleep the display after 15 minutes
 sudo pmset -a displaysleep 15
@@ -234,7 +233,8 @@ sudo pmset -b sleep 5
 sudo pmset -a standbydelay 86400
 
 # Never go into computer sleep mode
-sudo systemsetup -setcomputersleep Off > /dev/null
+# Removed: sudo systemsetup can trigger mDNS hostname conflicts
+# Run manually: sudo systemsetup -setcomputersleep Off
 
 # Hibernation mode
 # 0: Disable hibernation (speeds up entering sleep mode)
