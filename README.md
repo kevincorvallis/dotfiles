@@ -6,7 +6,7 @@ Modern macOS dotfiles optimized for Apple Silicon, featuring a curated set of CL
 
 ```bash
 # Clone the repo
-git clone https://github.com/kevinlee/dotfiles.git ~/dotfiles
+git clone https://github.com/kevincorvallis/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 
 # Install dotfiles
@@ -39,6 +39,10 @@ source ~/.zshrc
 | `jq` | JSON processor | - |
 | `tldr` | Simplified man pages | - |
 
+### Terminal
+
+- **Ghostty** - Fast, native terminal emulator with custom config (`.config/ghostty/config`)
+
 ### Window Management
 
 - **Rectangle** - Keyboard-driven window management (replaces Spectacle)
@@ -63,7 +67,7 @@ source ~/.zshrc
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/kevinlee/dotfiles.git ~/dotfiles
+git clone https://github.com/kevincorvallis/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 
 # 2. Review files before installing
@@ -174,15 +178,17 @@ source ~/.zshrc
 ~/dotfiles/
 ├── .aliases          # Command aliases (eza, bat, navigation)
 ├── .bash_profile     # Main shell configuration loader
-├── .bash_prompt      # Git-aware prompt (Solarized)
+├── .config/
+│   └── ghostty/
+│       └── config    # Ghostty terminal configuration
 ├── .exports          # Environment variables + Homebrew PATH
 ├── .functions        # Shell functions (server, mkd, etc.)
 ├── .gitconfig        # Git config with delta integration
 ├── .gitignore        # Global gitignore
 ├── .macos            # macOS system preferences
 ├── .vimrc            # Vim configuration (Solarized Dark)
-├── .zshrc            # Sources .bash_profile
-├── Brewfile          # Homebrew packages
+├── .zshrc            # Zsh configuration
+├── Brewfile          # Homebrew packages + fonts
 ├── bootstrap.sh      # Installation script
 └── init/
     ├── Solarized Dark.itermcolors
@@ -260,7 +266,11 @@ The `Brewfile` installs:
 **Other**
 - imagemagick, p7zip, pigz, tree, zopfli
 
+**Fonts (Nerd Font variants)**
+- JetBrains Mono, Fira Code, Monaspace, Cascadia Mono, Victor Mono, Geist Mono
+
 **Apps**
+- Ghostty (terminal emulator)
 - Rectangle (window management)
 
 ## Troubleshooting
@@ -339,4 +349,4 @@ MIT
 
 ---
 
-*Last updated: December 2024*
+*Last updated: February 2026*
