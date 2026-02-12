@@ -45,8 +45,8 @@ else
     sudo nvram StartupMute=%01
 fi
 
-# Disable transparency in the menu bar and elsewhere on Yosemite
-defaults write com.apple.universalaccess reduceTransparency -bool true
+# Reduce transparency in the menu bar and elsewhere (comment out for stock transparency)
+# defaults write com.apple.universalaccess reduceTransparency -bool true
 
 # Set highlight color to green
 defaults write NSGlobalDomain AppleHighlightColor -string "0.764700 0.976500 0.568600"
@@ -95,11 +95,7 @@ defaults write com.apple.print.PrintingPrefs "Quit When Finished" -bool true
 # defaults write com.apple.LaunchServices LSQuarantine -bool false
 
 # Remove duplicates in the “Open With” menu (also see `lscleanup` alias)
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user
-
-# Display ASCII control characters using caret notation in standard text views
-# Try e.g. `cd /tmp; unidecode "\x{0000}" > cc.txt; open -e cc.txt`
-defaults write NSGlobalDomain NSTextShowsControlCharacters -bool true
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user 2>/dev/null
 
 # Disable Resume system-wide
 defaults write com.apple.systempreferences NSQuitAlwaysKeepsWindows -bool false
@@ -144,11 +140,8 @@ defaults write NSGlobalDomain NSAutomaticQuoteSubstitutionEnabled -bool false
 # Disable auto-correct
 defaults write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
 
-# Set a custom wallpaper image. `DefaultDesktop.jpg` is already a symlink, and
-# all wallpapers are in `/Library/Desktop Pictures/`. The default is `Wave.jpg`.
-#rm -rf ~/Library/Application Support/Dock/desktoppicture.db
-#sudo rm -rf /System/Library/CoreServices/DefaultDesktop.jpg
-#sudo ln -s /path/to/your/image /System/Library/CoreServices/DefaultDesktop.jpg
+# Set a custom wallpaper image (use System Settings or `desktoppr` on modern macOS)
+# All wallpapers are in `/Library/Desktop Pictures/`.
 
 ###############################################################################
 # Trackpad, mouse, keyboard, Bluetooth accessories, and input                 #
@@ -167,9 +160,6 @@ defaults -currentHost write NSGlobalDomain com.apple.trackpad.enableSecondaryCli
 
 # Keep natural scrolling enabled (default macOS behavior)
 # defaults write NSGlobalDomain com.apple.swipescrolldirection -bool false
-
-# Increase sound quality for Bluetooth headphones/headsets
-defaults write com.apple.BluetoothAudioAgent "Apple Bitpool Min (editable)" -int 40
 
 # Enable full keyboard access for all controls
 # (e.g. enable Tab in modal dialogs)
@@ -265,10 +255,6 @@ defaults write com.apple.screencapture type -string "png"
 # Disable shadow in screenshots
 defaults write com.apple.screencapture disable-shadow -bool true
 
-# Enable subpixel font rendering on non-Apple LCDs
-# Reference: https://github.com/kevinSuttle/macOS-Defaults/issues/17#issuecomment-266633501
-defaults write NSGlobalDomain AppleFontSmoothing -int 1
-
 # Note: HiDPI is native on Apple Silicon Macs - no configuration needed.
 # sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true
 
@@ -296,8 +282,8 @@ defaults write com.apple.finder ShowRemovableMediaOnDesktop -bool true
 # Finder: show hidden files by default
 #defaults write com.apple.finder AppleShowAllFiles -bool true
 
-# Don't force showing all filename extensions (noisy in Spotlight)
-# defaults write NSGlobalDomain AppleShowAllExtensions -bool true
+# Hide filename extensions (cleaner Spotlight results)
+defaults write NSGlobalDomain AppleShowAllExtensions -bool false
 
 # Finder: show status bar
 defaults write com.apple.finder ShowStatusBar -bool true
@@ -338,27 +324,27 @@ defaults write com.apple.frameworks.diskimages auto-open-rw-root -bool true
 defaults write com.apple.finder OpenWindowForNewRemovableDisk -bool true
 
 # Show item info near icons on the desktop and in other icon views
-/usr/libexec/PlistBuddy -c "Set :DesktopViewSettings:IconViewSettings:showItemInfo true" ~/Library/Preferences/com.apple.finder.plist
-/usr/libexec/PlistBuddy -c "Set :FK_StandardViewSettings:IconViewSettings:showItemInfo true" ~/Library/Preferences/com.apple.finder.plist
-/usr/libexec/PlistBuddy -c "Set :StandardViewSettings:IconViewSettings:showItemInfo true" ~/Library/Preferences/com.apple.finder.plist
+/usr/libexec/PlistBuddy -c "Set :DesktopViewSettings:IconViewSettings:showItemInfo true" ~/Library/Preferences/com.apple.finder.plist || true
+/usr/libexec/PlistBuddy -c "Set :FK_StandardViewSettings:IconViewSettings:showItemInfo true" ~/Library/Preferences/com.apple.finder.plist || true
+/usr/libexec/PlistBuddy -c "Set :StandardViewSettings:IconViewSettings:showItemInfo true" ~/Library/Preferences/com.apple.finder.plist || true
 
 # Show item info to the right of the icons on the desktop
-/usr/libexec/PlistBuddy -c "Set DesktopViewSettings:IconViewSettings:labelOnBottom false" ~/Library/Preferences/com.apple.finder.plist
+/usr/libexec/PlistBuddy -c "Set DesktopViewSettings:IconViewSettings:labelOnBottom false" ~/Library/Preferences/com.apple.finder.plist || true
 
 # Enable snap-to-grid for icons on the desktop and in other icon views
-/usr/libexec/PlistBuddy -c "Set :DesktopViewSettings:IconViewSettings:arrangeBy grid" ~/Library/Preferences/com.apple.finder.plist
-/usr/libexec/PlistBuddy -c "Set :FK_StandardViewSettings:IconViewSettings:arrangeBy grid" ~/Library/Preferences/com.apple.finder.plist
-/usr/libexec/PlistBuddy -c "Set :StandardViewSettings:IconViewSettings:arrangeBy grid" ~/Library/Preferences/com.apple.finder.plist
+/usr/libexec/PlistBuddy -c "Set :DesktopViewSettings:IconViewSettings:arrangeBy grid" ~/Library/Preferences/com.apple.finder.plist || true
+/usr/libexec/PlistBuddy -c "Set :FK_StandardViewSettings:IconViewSettings:arrangeBy grid" ~/Library/Preferences/com.apple.finder.plist || true
+/usr/libexec/PlistBuddy -c "Set :StandardViewSettings:IconViewSettings:arrangeBy grid" ~/Library/Preferences/com.apple.finder.plist || true
 
 # Increase grid spacing for icons on the desktop and in other icon views
-/usr/libexec/PlistBuddy -c "Set :DesktopViewSettings:IconViewSettings:gridSpacing 100" ~/Library/Preferences/com.apple.finder.plist
-/usr/libexec/PlistBuddy -c "Set :FK_StandardViewSettings:IconViewSettings:gridSpacing 100" ~/Library/Preferences/com.apple.finder.plist
-/usr/libexec/PlistBuddy -c "Set :StandardViewSettings:IconViewSettings:gridSpacing 100" ~/Library/Preferences/com.apple.finder.plist
+/usr/libexec/PlistBuddy -c "Set :DesktopViewSettings:IconViewSettings:gridSpacing 100" ~/Library/Preferences/com.apple.finder.plist || true
+/usr/libexec/PlistBuddy -c "Set :FK_StandardViewSettings:IconViewSettings:gridSpacing 100" ~/Library/Preferences/com.apple.finder.plist || true
+/usr/libexec/PlistBuddy -c "Set :StandardViewSettings:IconViewSettings:gridSpacing 100" ~/Library/Preferences/com.apple.finder.plist || true
 
 # Increase the size of icons on the desktop and in other icon views
-/usr/libexec/PlistBuddy -c "Set :DesktopViewSettings:IconViewSettings:iconSize 80" ~/Library/Preferences/com.apple.finder.plist
-/usr/libexec/PlistBuddy -c "Set :FK_StandardViewSettings:IconViewSettings:iconSize 80" ~/Library/Preferences/com.apple.finder.plist
-/usr/libexec/PlistBuddy -c "Set :StandardViewSettings:IconViewSettings:iconSize 80" ~/Library/Preferences/com.apple.finder.plist
+/usr/libexec/PlistBuddy -c "Set :DesktopViewSettings:IconViewSettings:iconSize 80" ~/Library/Preferences/com.apple.finder.plist || true
+/usr/libexec/PlistBuddy -c "Set :FK_StandardViewSettings:IconViewSettings:iconSize 80" ~/Library/Preferences/com.apple.finder.plist || true
+/usr/libexec/PlistBuddy -c "Set :StandardViewSettings:IconViewSettings:iconSize 80" ~/Library/Preferences/com.apple.finder.plist || true
 
 # Use list view in all Finder windows by default
 # Four-letter codes for the other view modes: `icnv`, `clmv`, `glyv`
@@ -367,7 +353,7 @@ defaults write com.apple.finder FXPreferredViewStyle -string "Nlsv"
 # Disable the warning before emptying the Trash
 defaults write com.apple.finder WarnOnEmptyTrash -bool false
 
-# Enable AirDrop over Ethernet and on unsupported Macs running Lion
+# Enable AirDrop over Ethernet and on unsupported Macs
 defaults write com.apple.NetworkBrowser BrowseAllInterfaces -bool true
 
 # Show the ~/Library folder
@@ -376,10 +362,6 @@ xattr -d com.apple.FinderInfo ~/Library 2>/dev/null
 
 # Show the /Volumes folder
 sudo chflags nohidden /Volumes
-
-# Remove Dropbox’s green checkmark icons in Finder
-file=/Applications/Dropbox.app/Contents/Resources/emblem-dropbox-uptodate.icns
-[ -e "${file}" ] && mv -f "${file}" "${file}.bak"
 
 # Expand the following File Info panes:
 # “General”, “Open with”, and “Sharing & Permissions”
@@ -428,10 +410,6 @@ defaults write com.apple.dock expose-animation-duration -float 0.1
 # (i.e. use the old Exposé behavior instead)
 defaults write com.apple.dock expose-group-by-app -bool false
 
-# Note: Dashboard was removed in macOS Catalina (10.15)
-# defaults write com.apple.dashboard mcx-disabled -bool true
-# defaults write com.apple.dock dashboard-in-overlay -bool true
-
 # Don't automatically rearrange Spaces based on most recent use
 defaults write com.apple.dock mru-spaces -bool false
 
@@ -478,104 +456,15 @@ find "${HOME}/Library/Application Support/Dock" -name "launchpad-*.db" -maxdepth
 # 11: Launchpad
 # 12: Notification Center
 # 13: Lock Screen
-# Top left screen corner → Mission Control
-defaults write com.apple.dock wvous-tl-corner -int 2
+# Disable all hot corners
+defaults write com.apple.dock wvous-tl-corner -int 0
 defaults write com.apple.dock wvous-tl-modifier -int 0
-# Top right screen corner → Desktop
-defaults write com.apple.dock wvous-tr-corner -int 4
+defaults write com.apple.dock wvous-tr-corner -int 0
 defaults write com.apple.dock wvous-tr-modifier -int 0
-# Bottom left screen corner → Start screen saver
-defaults write com.apple.dock wvous-bl-corner -int 5
+defaults write com.apple.dock wvous-bl-corner -int 0
 defaults write com.apple.dock wvous-bl-modifier -int 0
-
-###############################################################################
-# Safari & WebKit                                                             #
-###############################################################################
-
-# Privacy: don’t send search queries to Apple
-defaults write com.apple.Safari UniversalSearchEnabled -bool false
-defaults write com.apple.Safari SuppressSearchSuggestions -bool true
-
-# Press Tab to highlight each item on a web page
-defaults write com.apple.Safari WebKitTabToLinksPreferenceKey -bool true
-defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2TabsToLinks -bool true
-
-# Show the full URL in the address bar (note: this still hides the scheme)
-defaults write com.apple.Safari ShowFullURLInSmartSearchField -bool true
-
-# Set Safari’s home page to `about:blank` for faster loading
-defaults write com.apple.Safari HomePage -string "about:blank"
-
-# Prevent Safari from opening ‘safe’ files automatically after downloading
-defaults write com.apple.Safari AutoOpenSafeDownloads -bool false
-
-# Allow hitting the Backspace key to go to the previous page in history
-defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2BackspaceKeyNavigationEnabled -bool true
-
-# Hide Safari’s bookmarks bar by default
-defaults write com.apple.Safari ShowFavoritesBar -bool false
-
-# Hide Safari’s sidebar in Top Sites
-defaults write com.apple.Safari ShowSidebarInTopSites -bool false
-
-# Disable Safari’s thumbnail cache for History and Top Sites
-defaults write com.apple.Safari DebugSnapshotsUpdatePolicy -int 2
-
-# Enable Safari’s debug menu
-defaults write com.apple.Safari IncludeInternalDebugMenu -bool true
-
-# Make Safari’s search banners default to Contains instead of Starts With
-defaults write com.apple.Safari FindOnPageMatchesWordStartsOnly -bool false
-
-# Remove useless icons from Safari’s bookmarks bar
-defaults write com.apple.Safari ProxiesInBookmarksBar "()"
-
-# Enable the Develop menu and the Web Inspector in Safari
-defaults write com.apple.Safari IncludeDevelopMenu -bool true
-defaults write com.apple.Safari WebKitDeveloperExtrasEnabledPreferenceKey -bool true
-defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2DeveloperExtrasEnabled -bool true
-
-# Add a context menu item for showing the Web Inspector in web views
-defaults write NSGlobalDomain WebKitDeveloperExtras -bool true
-
-# Enable continuous spellchecking
-defaults write com.apple.Safari WebContinuousSpellCheckingEnabled -bool true
-# Disable auto-correct
-defaults write com.apple.Safari WebAutomaticSpellingCorrectionEnabled -bool false
-
-# Disable AutoFill
-defaults write com.apple.Safari AutoFillFromAddressBook -bool false
-defaults write com.apple.Safari AutoFillPasswords -bool false
-defaults write com.apple.Safari AutoFillCreditCardData -bool false
-defaults write com.apple.Safari AutoFillMiscellaneousForms -bool false
-
-# Warn about fraudulent websites
-defaults write com.apple.Safari WarnAboutFraudulentWebsites -bool true
-
-# Disable plug-ins
-defaults write com.apple.Safari WebKitPluginsEnabled -bool false
-defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2PluginsEnabled -bool false
-
-# Disable Java
-defaults write com.apple.Safari WebKitJavaEnabled -bool false
-defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2JavaEnabled -bool false
-defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2JavaEnabledForLocalFiles -bool false
-
-# Block pop-up windows
-defaults write com.apple.Safari WebKitJavaScriptCanOpenWindowsAutomatically -bool false
-defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2JavaScriptCanOpenWindowsAutomatically -bool false
-
-# Disable auto-playing video
-#defaults write com.apple.Safari WebKitMediaPlaybackAllowsInline -bool false
-#defaults write com.apple.SafariTechnologyPreview WebKitMediaPlaybackAllowsInline -bool false
-#defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2AllowsInlineMediaPlayback -bool false
-#defaults write com.apple.SafariTechnologyPreview com.apple.Safari.ContentPageGroupIdentifier.WebKit2AllowsInlineMediaPlayback -bool false
-
-# Enable “Do Not Track”
-defaults write com.apple.Safari SendDoNotTrackHTTPHeader -bool true
-
-# Update extensions automatically
-defaults write com.apple.Safari InstallExtensionUpdatesAutomatically -bool true
+defaults write com.apple.dock wvous-br-corner -int 0
+defaults write com.apple.dock wvous-br-modifier -int 0
 
 ###############################################################################
 # Mail                                                                        #
@@ -613,13 +502,6 @@ defaults write com.apple.mail SpellCheckingBehavior -string "NoSpellCheckingEnab
 # Use `sudo mdutil -i off "/Volumes/foo"` to stop indexing any volume.
 sudo defaults write /.Spotlight-V100/VolumeConfiguration Exclusions -array "/Volumes"
 # Change indexing order and disable some search results
-# Yosemite-specific search results (remove them if you are using macOS 10.9 or older):
-# 	MENU_DEFINITION
-# 	MENU_CONVERSION
-# 	MENU_EXPRESSION
-# 	MENU_SPOTLIGHT_SUGGESTIONS (send search queries to Apple)
-# 	MENU_WEBSEARCH             (send search queries to Apple)
-# 	MENU_OTHER
 defaults write com.apple.spotlight orderedItems -array \
 	'{"enabled" = 1;"name" = "APPLICATIONS";}' \
 	'{"enabled" = 1;"name" = "SYSTEM_PREFS";}' \
@@ -643,8 +525,6 @@ defaults write com.apple.spotlight orderedItems -array \
 	'{"enabled" = 0;"name" = "MENU_EXPRESSION";}' \
 	'{"enabled" = 0;"name" = "MENU_WEBSEARCH";}' \
 	'{"enabled" = 0;"name" = "MENU_SPOTLIGHT_SUGGESTIONS";}'
-# Load new settings before rebuilding the index
-killall mds > /dev/null 2>&1
 # Make sure indexing is enabled for the main volume
 sudo mdutil -i on / > /dev/null
 # Rebuild the index from scratch
@@ -658,7 +538,9 @@ sudo mdutil -E / > /dev/null
 defaults write com.apple.terminal StringEncodings -array 4
 
 # Use a modified version of the Solarized Dark theme by default in Terminal.app
-osascript <<EOD
+THEME_FILE="${HOME}/init/Solarized Dark xterm-256color.terminal"
+if [ -f "$THEME_FILE" ]; then
+	osascript <<EOD
 
 tell application "Terminal"
 
@@ -703,6 +585,7 @@ tell application "Terminal"
 end tell
 
 EOD
+fi
 
 # Enable “focus follows mouse” for Terminal.app and all X11 apps
 # i.e. hover over a window and start typing in it without clicking first
@@ -716,12 +599,7 @@ defaults write com.apple.terminal SecureKeyboardEntry -bool true
 # Disable the annoying line marks
 defaults write com.apple.Terminal ShowLineMarks -int 0
 
-# Install the Solarized Dark theme for iTerm (only if iTerm is installed)
-if [ -d "/Applications/iTerm.app" ]; then
-	open "${HOME}/init/Solarized Dark.itermcolors"
-	# Don't display the annoying prompt when quitting iTerm
-	defaults write com.googlecode.iterm2 PromptOnQuit -bool false
-fi
+# iTerm theme: install Solarized Dark manually if using iTerm
 
 ###############################################################################
 # Time Machine                                                                #
@@ -783,9 +661,6 @@ defaults write com.apple.appstore ShowDebugMenu -bool true
 # Enable the automatic update check
 defaults write com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
 
-# Check for software updates daily, not just once per week
-defaults write com.apple.SoftwareUpdate ScheduleFrequency -int 1
-
 # Download newly available updates in background
 defaults write com.apple.SoftwareUpdate AutomaticDownload -int 1
 
@@ -822,38 +697,21 @@ defaults write com.apple.messageshelper.MessageController SOInputLineSettings -d
 defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "continuousSpellCheckingEnabled" -bool false
 
 ###############################################################################
-# Google Chrome & Google Chrome Canary                                        #
+# Google Chrome                                                               #
 ###############################################################################
 
 # Use the system-native print preview dialog
 defaults write com.google.Chrome DisablePrintPreview -bool true
-defaults write com.google.Chrome.canary DisablePrintPreview -bool true
 
 # Expand the print dialog by default
 defaults write com.google.Chrome PMPrintingExpandedStateForPrint2 -bool true
-defaults write com.google.Chrome.canary PMPrintingExpandedStateForPrint2 -bool true
-
-###############################################################################
-# GPGMail 2                                                                   #
-###############################################################################
-
-# Disable signing emails by default
-defaults write ~/Library/Preferences/org.gpgtools.gpgmail SignNewEmailsByDefault -bool false
-
-###############################################################################
-# Opera & Opera Developer                                                     #
-###############################################################################
-
-# Expand the print dialog by default
-defaults write com.operasoftware.Opera PMPrintingExpandedStateForPrint2 -boolean true
-defaults write com.operasoftware.OperaDeveloper PMPrintingExpandedStateForPrint2 -boolean true
 
 ###############################################################################
 # Sublime Text                                                                #
 ###############################################################################
 
 # Install Sublime Text settings
-cp -r init/Preferences.sublime-settings ~/Library/Application\ Support/Sublime\ Text*/Packages/User/Preferences.sublime-settings 2> /dev/null
+cp -r init/Preferences.sublime-settings ~/Library/Application\ Support/Sublime\ Text/Packages/User/Preferences.sublime-settings 2> /dev/null
 
 ###############################################################################
 # Rectangle.app                                                               #
@@ -866,61 +724,21 @@ defaults write com.knollsoft.Rectangle launchOnLogin -bool true
 # defaults write com.knollsoft.Rectangle hideMenubarIcon -bool true
 
 ###############################################################################
-# Transmission.app                                                            #
-###############################################################################
-
-# Use `~/Documents/Torrents` to store incomplete downloads
-defaults write org.m0k.transmission UseIncompleteDownloadFolder -bool true
-defaults write org.m0k.transmission IncompleteDownloadFolder -string "${HOME}/Documents/Torrents"
-
-# Use `~/Downloads` to store completed downloads
-defaults write org.m0k.transmission DownloadLocationConstant -bool true
-
-# Don’t prompt for confirmation before downloading
-defaults write org.m0k.transmission DownloadAsk -bool false
-defaults write org.m0k.transmission MagnetOpenAsk -bool false
-
-# Don’t prompt for confirmation before removing non-downloading active transfers
-defaults write org.m0k.transmission CheckRemoveDownloading -bool true
-
-# Trash original torrent files
-defaults write org.m0k.transmission DeleteOriginalTorrent -bool true
-
-# Hide the donate message
-defaults write org.m0k.transmission WarningDonate -bool false
-# Hide the legal disclaimer
-defaults write org.m0k.transmission WarningLegal -bool false
-
-# IP block list.
-# Source: https://giuliomac.wordpress.com/2014/02/19/best-blocklist-for-transmission/
-defaults write org.m0k.transmission BlocklistNew -bool true
-defaults write org.m0k.transmission BlocklistURL -string "https://github.com/Naunter/BT_BlockLists/raw/master/bt_blocklists.gz"
-defaults write org.m0k.transmission BlocklistAutoUpdate -bool true
-
-# Randomize port on launch
-defaults write org.m0k.transmission RandomPort -bool true
-
-###############################################################################
 # Kill affected applications                                                  #
 ###############################################################################
 
 for app in "Activity Monitor" \
-	"Calendar" \
 	"cfprefsd" \
-	"Contacts" \
 	"Dock" \
 	"Finder" \
-	"Google Chrome Canary" \
 	"Google Chrome" \
 	"Mail" \
 	"Messages" \
-	"Opera" \
 	"Photos" \
 	"Rectangle" \
 	"Safari" \
 	"SystemUIServer" \
-	"Terminal" \
-	"Transmission"; do
+	"Terminal"; do
 	killall "${app}" &> /dev/null
 done
 echo "Done. Note that some of these changes require a logout/restart to take effect."

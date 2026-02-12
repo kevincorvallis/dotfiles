@@ -166,19 +166,20 @@ alias path='echo -e ${PATH//:/\\n}'
 
 # Custom aliases
 # Edit shell configuration
-alias edit="${EDITOR:-vim} ~/.zshrc"
+alias edit='if command -v subl >/dev/null 2>&1; then subl ~/.aliases; else vi ~/.aliases; fi'
 
 # iCloud directory navigation
 alias ic="cd \"$ICLOUD\""
 alias college="cd \"$ICLOUD/School/College\""
 alias sc="cd \"$ICLOUD/School/College/USC/super_senior\""
 alias film="cd \"$ICLOUD/Personal/photos/film_photography\""
+alias obsidian="cd ~/Library/Mobile\ Documents/iCloud~md~obsidian"
 
 # Common directory shortcuts
 alias dw="cd \"$HOME/Downloads\""
 
 # Sublime Text shortcut
-alias s="/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl"
+alias s="subl"
 
 # YouTube downloader with optimized settings
 alias yt='yt-dlp -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]"'
