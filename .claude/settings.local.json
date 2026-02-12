@@ -3,7 +3,26 @@
     "allow": [
       "WebSearch",
       "Bash(sw_vers:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(echo:*)",
+      "Bash(open:*)",
+      "Bash(osascript:*)",
+      "Bash(brew --prefix:*)",
+      "Bash(sysctl:*)",
+      "Bash(system_profiler:*)",
+      "Bash(do printf \"%-15s \" \"$cmd\")",
+      "Bash(command -v $cmd)",
+      "Bash(ifconfig:*)",
+      "Bash(ipconfig:*)",
+      "Bash(zsh:*)",
+      "Bash(/Applications/Ghostty.app/Contents/MacOS/ghostty:*)",
+      "mcp__exa__web_search_exa",
+      "Bash(defaults read:*)",
+      "Bash(/usr/libexec/PlistBuddy:*)",
+      "Bash(xxd:*)",
+      "Bash(fc-list:*)",
+      "Bash(brew tap:*)",
+      "Bash(brew search:*)"
     ]
   }
 }
