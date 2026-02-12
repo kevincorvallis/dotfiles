@@ -22,7 +22,14 @@
       "Bash(xxd:*)",
       "Bash(fc-list:*)",
       "Bash(brew tap:*)",
-      "Bash(brew search:*)"
+      "Bash(brew search:*)",
+      "Bash(brew bundle:*)",
+      "Bash(log show:*)",
+      "Bash(scutil:*)",
+      "Bash(sudo scutil:*)",
+      "Bash(defaults write:*)",
+      "Bash(killall:*)",
+      "Bash(git config:*)"
     ]
   }
 }

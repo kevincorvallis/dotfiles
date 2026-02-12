@@ -44,6 +44,7 @@ brew "pngcheck"
 brew "xpdf"
 brew "xz"
 brew "ack"
+brew "duti"          # Set default apps for file types
 brew "gs"
 brew "imagemagick"
 brew "lua"
