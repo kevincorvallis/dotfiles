@@ -51,10 +51,8 @@ fi
 # Set highlight color to green
 defaults write NSGlobalDomain AppleHighlightColor -string "0.764700 0.976500 0.568600"
 
-if [ "$ENABLE_DARK_MODE" = true ]; then
-  # Set interface style to Dark (comment out to keep system default)
-  defaults write NSGlobalDomain AppleInterfaceStyle -string "Dark"
-fi
+# Auto appearance: light during the day, dark at sundown
+defaults write NSGlobalDomain AppleInterfaceStyleSwitchesAutomatically -bool true
 
 # Soften light mode: reduce white point so bright whites feel creamy, not harsh
 # This only affects the perceived brightness of white — dark mode is untouched
