@@ -19,10 +19,15 @@ doIt() {
 		--exclude "CUSTOMIZATION_CHECKLIST.md" \
 		--exclude "LICENSE-MIT.txt" \
 		-avh --no-perms . ~;
-	# Deploy Ghostty config to its expected location
+	# Deploy Ghostty config (base + host-specific overrides)
 	if [ -d ".config/ghostty" ]; then
 		mkdir -p ~/Library/Application\ Support/com.mitchellh.ghostty
 		cp .config/ghostty/config ~/Library/Application\ Support/com.mitchellh.ghostty/config
+		host_config=".config/ghostty/hosts/$(hostname -s)"
+		if [ -f "$host_config" ]; then
+			printf '\n' >> ~/Library/Application\ Support/com.mitchellh.ghostty/config
+			cat "$host_config" >> ~/Library/Application\ Support/com.mitchellh.ghostty/config
+		fi
 	fi
 	# Deploy Aerospace config
 	if [ -d ".config/aerospace" ]; then
