@@ -23,6 +23,29 @@ outer.bottom = 10
 outer.top = 10
 outer.right = 10
 
+# Dual monitor: pin workspaces to monitors
+# 'main' = macOS primary display, 'secondary' = the other
+[workspace-to-monitor-force-assignment]
+1 = 'main'
+2 = 'main'
+3 = 'main'
+4 = 'secondary'
+5 = 'secondary'
+6 = 'secondary'
+
+# Auto-assign apps to workspaces
+[[on-window-detected]]
+if.app-id = 'com.tinyspeck.slackmacgap'
+run = 'move-node-to-workspace 4'
+
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
+run = 'move-node-to-workspace 5'
+
+[[on-window-detected]]
+if.app-id = 'com.spotify.client'
+run = 'move-node-to-workspace 6'
+
 # Main keybindings – alt is the modifier
 # Focus windows
 [mode.main.binding]
@@ -36,6 +59,13 @@ alt-shift-h = 'move left'
 alt-shift-j = 'move down'
 alt-shift-k = 'move up'
 alt-shift-l = 'move right'
+
+# Focus / move between monitors
+alt-tab = 'focus-monitor --wrap-around next'
+alt-shift-tab = 'move-node-to-monitor --wrap-around next'
+
+# Balance window sizes in workspace
+alt-shift-b = 'balance-sizes'
 
 # Resize windows
 alt-shift-minus = 'resize smart -50'
