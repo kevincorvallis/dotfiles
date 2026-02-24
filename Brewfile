@@ -18,8 +18,6 @@ brew "php"
 brew "gmp"
 
 # Font tools
-brew "sfnt2woff"
-brew "sfnt2woff-zopfli"
 brew "woff2"
 
 # Git
@@ -69,4 +67,4 @@ cask "font-geist-mono-nerd-font"
 
 # Casks
 cask "ghostty"      # Terminal emulator
-cask "rectangle"    # Window management
+cask "nikitabobko/tap/aerospace"  # Tiling window manager

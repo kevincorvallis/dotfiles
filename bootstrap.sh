@@ -24,6 +24,11 @@ doIt() {
 		mkdir -p ~/Library/Application\ Support/com.mitchellh.ghostty
 		cp .config/ghostty/config ~/Library/Application\ Support/com.mitchellh.ghostty/config
 	fi
+	# Deploy Aerospace config
+	if [ -d ".config/aerospace" ]; then
+		mkdir -p ~/.config/aerospace
+		cp .config/aerospace/aerospace.toml ~/.config/aerospace/aerospace.toml
+	fi
 	if [[ "$current_shell" == *"zsh" ]]; then
 		if [ ! -e ~/.zshrc ]; then
 			ln -s ~/.bash_profile ~/.zshrc
