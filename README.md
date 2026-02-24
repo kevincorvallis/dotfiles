@@ -56,6 +56,10 @@ source ~/.zshrc
 
 - **Aerospace** - Tiling window manager with vim-style keybindings (`.config/aerospace/aerospace.toml`)
 
+### AI Tooling
+
+- **Claude Code** - Settings, permissions, plugins, and custom agents (`.config/claude/`)
+
 ### Shell Features
 
 - Apple Silicon Homebrew support (`/opt/homebrew`)
@@ -192,6 +196,10 @@ source ~/.zshrc
 ├── .config/
 │   ├── aerospace/
 │   │   └── aerospace.toml  # Aerospace tiling WM config
+│   ├── claude/
+│   │   ├── CLAUDE.md        # Global Claude Code instructions
+│   │   ├── agents/          # Custom Claude agents (e.g., librarian)
+│   │   └── settings.json   # Claude Code permissions + plugins
 │   ├── ghostty/
 │   │   ├── config           # Ghostty terminal configuration
 │   │   └── hosts/           # Per-host Ghostty overrides
