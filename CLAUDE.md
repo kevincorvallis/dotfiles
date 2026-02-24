@@ -29,6 +29,7 @@ Rsyncs dotfiles to `~/` with explicit excludes (`.git/`, `.claude/`, `.config/`,
 - Ghostty config → `~/Library/Application Support/com.mitchellh.ghostty/config` (base + host-specific overlay from `.config/ghostty/hosts/$(hostname -s)`)
 - Aerospace config → `~/.config/aerospace/aerospace.toml`
 - Starship config → `~/.config/starship/starship.toml`
+- Claude Code config → `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, `~/.claude/agents/`
 
 ### App Configs
 
@@ -36,6 +37,9 @@ Rsyncs dotfiles to `~/` with explicit excludes (`.git/`, `.claude/`, `.config/`,
 - `.config/ghostty/hosts/<hostname>` — Per-host Ghostty overrides (e.g., theme), appended to base config during bootstrap
 - `.config/aerospace/aerospace.toml` — Aerospace tiling WM config (alt-hjkl nav, workspaces 1-6)
 - `.config/starship/starship.toml` — Starship prompt config (green Matrix aesthetic)
+- `.config/claude/settings.json` — Claude Code permissions, plugins, and allowed tools
+- `.config/claude/CLAUDE.md` — Global Claude Code instructions
+- `.config/claude/agents/librarian.md` — Custom "Librarian" research agent
 
 ### Other
 

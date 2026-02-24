@@ -35,6 +35,13 @@ doIt() {
 		mkdir -p ~/.config/starship
 		cp .config/starship/starship.toml ~/.config/starship/starship.toml
 	fi
+	# Deploy Claude Code config
+	if [ -d ".config/claude" ]; then
+		mkdir -p ~/.claude/agents
+		cp .config/claude/settings.json ~/.claude/settings.json
+		cp .config/claude/CLAUDE.md ~/.claude/CLAUDE.md
+		[ -d ".config/claude/agents" ] && cp .config/claude/agents/* ~/.claude/agents/
+	fi
 	if [[ "$current_shell" == *"zsh" ]]; then
 		if [ ! -e ~/.zshrc ]; then
 			ln -s ~/.bash_profile ~/.zshrc
