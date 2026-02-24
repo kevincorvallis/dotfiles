@@ -14,7 +14,7 @@ window-padding-y = 10
 background-opacity = 0.95
 background-blur = 12
 window-vsync = true
-window-decoration = true
+window-decoration = false
 
 # --- Clipboard ---
 copy-on-select = clipboard
@@ -27,7 +27,7 @@ mouse-scroll-multiplier = 1.0
 shell-integration = detect
 
 # --- macOS niceties ---
-macos-titlebar-style = tabs
+macos-titlebar-style = hidden
 macos-option-as-alt = true
 window-save-state = never
 
