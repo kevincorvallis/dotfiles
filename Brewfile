@@ -35,6 +35,13 @@ brew "fd"           # Fast find alternative
 brew "tldr"         # Simplified man pages
 brew "htop"         # Interactive process viewer
 brew "jq"           # JSON processor
+brew "yt-dlp"       # YouTube downloader
+brew "zoxide"       # Smarter cd that learns your habits
+brew "starship"     # Cross-shell prompt
+brew "atuin"        # Shell history search + sync
+brew "direnv"       # Per-directory environment variables
+brew "zsh-autosuggestions"      # Fish-like inline suggestions
+brew "zsh-syntax-highlighting"  # Real-time command validation
 
 # Utilities
 brew "netpbm"
@@ -67,4 +74,5 @@ cask "font-geist-mono-nerd-font"
 
 # Casks
 cask "ghostty"      # Terminal emulator
+cask "sublime-text" # Text editor
 cask "nikitabobko/tap/aerospace"  # Tiling window manager

@@ -2,17 +2,13 @@
 
 cd "$(dirname "${BASH_SOURCE}")";
 
-git pull origin main;
-
 doIt() {
 	current_shell="$(echo "$SHELL")"
 	rsync --exclude ".git/" \
 		--exclude ".claude/" \
 		--exclude ".config/" \
 		--exclude ".DS_Store" \
-		--exclude ".osx" \
 		--exclude "bootstrap.sh" \
-		--exclude "brew.sh" \
 		--exclude "Brewfile" \
 		--exclude "README.md" \
 		--exclude "COMMANDS_GUIDE.md" \
@@ -33,6 +29,11 @@ doIt() {
 	if [ -d ".config/aerospace" ]; then
 		mkdir -p ~/.config/aerospace
 		cp .config/aerospace/aerospace.toml ~/.config/aerospace/aerospace.toml
+	fi
+	# Deploy Starship config
+	if [ -d ".config/starship" ]; then
+		mkdir -p ~/.config/starship
+		cp .config/starship/starship.toml ~/.config/starship/starship.toml
 	fi
 	if [[ "$current_shell" == *"zsh" ]]; then
 		if [ ! -e ~/.zshrc ]; then

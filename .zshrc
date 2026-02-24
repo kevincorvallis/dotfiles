@@ -40,7 +40,7 @@ setopt NO_CASE_GLOB          # Case-insensitive globbing
 setopt CORRECT               # Command correction
 
 # =============================================================================
-# Completion (compinit loaded after Homebrew FPATH is set, see below)
+# Completion
 # =============================================================================
 
 # Case-insensitive completion
@@ -53,26 +53,9 @@ zstyle ':completion:*' menu select
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 
 # =============================================================================
-# Prompt (Matrix style)
-# =============================================================================
-autoload -Uz vcs_info
-precmd() { vcs_info }
-
-setopt PROMPT_SUBST
-
-# Git branch in prompt
-zstyle ':vcs_info:git:*' formats ' %F{green}[%b]%f'
-zstyle ':vcs_info:*' enable git
-
-# Matrix prompt
-PROMPT='%F{green}%~%f${vcs_info_msg_0_} %F{green}>>%f '
-
-# =============================================================================
 # Key Bindings
 # =============================================================================
 bindkey -e                           # Emacs key bindings
-bindkey '^[[A' history-search-backward   # Up arrow searches history
-bindkey '^[[B' history-search-forward    # Down arrow searches history
 
 # =============================================================================
 # Load shared dotfiles
@@ -83,9 +66,32 @@ done
 unset file
 
 # =============================================================================
-# Homebrew completions
+# Homebrew completions + Zsh plugins
 # =============================================================================
 if type brew &>/dev/null; then
     FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
     autoload -Uz compinit && compinit
+
+    # Zsh plugins (installed via Homebrew)
+    local brew_prefix="$(brew --prefix)"
+    [[ -f "$brew_prefix/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
+        source "$brew_prefix/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+    # Syntax highlighting must be loaded last
+    [[ -f "$brew_prefix/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && \
+        source "$brew_prefix/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 fi
+
+# =============================================================================
+# Modern tool integrations
+# =============================================================================
+# Starship prompt
+command -v starship &>/dev/null && eval "$(starship init zsh)"
+
+# Zoxide (smarter cd)
+command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"
+
+# Atuin (shell history search)
+command -v atuin &>/dev/null && eval "$(atuin init zsh)"
+
+# Direnv (per-directory env vars)
+command -v direnv &>/dev/null && eval "$(direnv hook zsh)"

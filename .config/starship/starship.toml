@@ -1,0 +1,42 @@
+# Starship prompt config — green Matrix aesthetic
+format = """$directory$git_branch$git_status$python$nodejs$rust$golang$package$cmd_duration$character"""
+
+[character]
+success_symbol = "[>>](green)"
+error_symbol = "[>>](red)"
+
+[directory]
+style = "green"
+truncation_length = 5
+
+[git_branch]
+format = " [$branch]($style)"
+style = "green"
+
+[git_status]
+format = "[$all_status$ahead_behind]($style) "
+style = "green"
+
+[cmd_duration]
+min_time = 2_000
+format = " [$duration]($style)"
+style = "yellow"
+
+[python]
+format = " [$virtualenv]($style)"
+style = "yellow"
+
+[nodejs]
+format = " [$version]($style)"
+style = "green"
+
+[rust]
+format = " [$version]($style)"
+style = "red"
+
+[golang]
+format = " [$version]($style)"
+style = "cyan"
+
+[package]
+disabled = true

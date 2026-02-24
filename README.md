@@ -38,6 +38,15 @@ source ~/.zshrc
 | `htop` | Interactive process viewer | - |
 | `jq` | JSON processor | - |
 | `tldr` | Simplified man pages | - |
+| `zoxide` | Smarter `cd` that learns your habits | `z`, `zi` |
+| `starship` | Cross-shell prompt with git/language context | automatic |
+| `atuin` | Shell history search + sync | `ctrl-r` |
+| `direnv` | Per-directory environment variables | automatic |
+
+### Shell Plugins
+
+- **zsh-autosuggestions** - Fish-like inline command suggestions as you type
+- **zsh-syntax-highlighting** - Real-time command validation (green = valid, red = invalid)
 
 ### Terminal
 
@@ -45,12 +54,14 @@ source ~/.zshrc
 
 ### Window Management
 
-- **Rectangle** - Keyboard-driven window management (replaces Spectacle)
+- **Aerospace** - Tiling window manager with vim-style keybindings (`.config/aerospace/aerospace.toml`)
 
 ### Shell Features
 
 - Apple Silicon Homebrew support (`/opt/homebrew`)
-- Git-aware prompt with branch and status
+- Starship prompt with git/language context detection
+- Atuin-powered shell history search (replaces ctrl-r)
+- Zoxide smart directory navigation
 - Extensive aliases for navigation and utilities
 - Python 3 compatible functions
 - iCloud directory shortcuts
@@ -177,22 +188,25 @@ source ~/.zshrc
 ```
 ~/dotfiles/
 ├── .aliases          # Command aliases (eza, bat, navigation)
-├── .bash_profile     # Main shell configuration loader
+├── .bash_profile     # Minimal bash config for script compatibility
 ├── .config/
-│   └── ghostty/
-│       └── config    # Ghostty terminal configuration
+│   ├── aerospace/
+│   │   └── aerospace.toml  # Aerospace tiling WM config
+│   ├── ghostty/
+│   │   ├── config           # Ghostty terminal configuration
+│   │   └── hosts/           # Per-host Ghostty overrides
+│   └── starship/
+│       └── starship.toml    # Starship prompt configuration
 ├── .exports          # Environment variables + Homebrew PATH
 ├── .functions        # Shell functions (server, mkd, etc.)
 ├── .gitconfig        # Git config with delta integration
 ├── .gitignore        # Global gitignore
 ├── .macos            # macOS system preferences
 ├── .vimrc            # Vim configuration (Solarized Dark)
-├── .zshrc            # Zsh configuration
+├── .zshrc            # Zsh configuration (primary shell config)
 ├── Brewfile          # Homebrew packages + fonts
 ├── bootstrap.sh      # Installation script
 └── init/
-    ├── Solarized Dark.itermcolors
-    ├── Solarized Dark xterm-256color.terminal
     └── Preferences.sublime-settings
 ```
 
@@ -232,7 +246,7 @@ The `.macos` script configures system preferences. Key settings:
 - Tap to click on trackpad
 - Show file extensions
 - Disable auto-correct
-- Rectangle window management
+- Aerospace tiling window management
 
 Review and customize before running:
 
@@ -259,6 +273,8 @@ The `Brewfile` installs:
 **Modern CLI**
 - gh, fzf, ripgrep, bat, eza
 - git-delta, fd, tldr, htop, jq
+- zoxide, starship, atuin, direnv
+- zsh-autosuggestions, zsh-syntax-highlighting
 
 **Development**
 - git, git-lfs, php, lua
@@ -271,7 +287,7 @@ The `Brewfile` installs:
 
 **Apps**
 - Ghostty (terminal emulator)
-- Rectangle (window management)
+- Aerospace (tiling window manager)
 
 ## Troubleshooting
 
@@ -340,7 +356,7 @@ Based on [Mathias Bynens' dotfiles](https://github.com/mathiasbynens/dotfiles) w
 - Apple Silicon compatibility
 - Modern CLI tools (eza, bat, ripgrep, fd, delta)
 - macOS Sonoma/Sequoia support
-- Rectangle window management
+- Aerospace tiling window management
 - Python 3 compatibility
 
 ## License
