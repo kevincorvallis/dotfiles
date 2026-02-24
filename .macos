@@ -56,6 +56,16 @@ if [ "$ENABLE_DARK_MODE" = true ]; then
   defaults write NSGlobalDomain AppleInterfaceStyle -string "Dark"
 fi
 
+# Soften light mode: reduce white point so bright whites feel creamy, not harsh
+# This only affects the perceived brightness of white — dark mode is untouched
+defaults write com.apple.universalaccess reduceWhitePoint -bool true
+defaults write com.apple.universalaccess whitePointFilterIntensity -float 0.2
+
+# Night Shift: enable and set warm color temperature
+# NOTE: Night Shift schedule must be set manually in System Settings > Displays > Night Shift
+# Set it to "Sunset to Sunrise" or a custom schedule, and drag warmth to ~60-70%
+# The defaults write for CoreBrightness is fragile across macOS versions
+
 # Set sidebar icon size to medium
 defaults write NSGlobalDomain NSTableViewDefaultSizeMode -int 2
 
