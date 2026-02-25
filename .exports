@@ -28,7 +28,7 @@ export LC_ALL='en_US.UTF-8';
 # Highlight section titles in manual pages (bold yellow).
 export LESS_TERMCAP_md=$'\e[1;33m';
 
-# Don’t clear the screen after quitting a manual page.
+# Don't clear the screen after quitting a manual page.
 export MANPAGER='less -X';
 
 # iCloud directory for custom aliases
@@ -49,3 +49,6 @@ fi
 
 # Starship prompt config location
 export STARSHIP_CONFIG="$HOME/.config/starship/starship.toml"
+
+# Silence zoxide doctor warning (init order is fine, just not last in .zshrc)
+export _ZO_DOCTOR=0;
