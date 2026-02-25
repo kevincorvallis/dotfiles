@@ -46,7 +46,7 @@ doIt() {
 		if [ ! -e ~/.zshrc ]; then
 			ln -s ~/.bash_profile ~/.zshrc
 		fi
-		source ~/.zshrc
+		zsh -c 'source ~/.zshrc'
 	else
 		source ~/.bash_profile
 	fi
