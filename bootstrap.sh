@@ -13,6 +13,7 @@ doIt() {
 		--exclude "README.md" \
 		--exclude "COMMANDS_GUIDE.md" \
 		--exclude "CUSTOMIZATION_CHECKLIST.md" \
+		--exclude "SETUP.md" \
 		--exclude "LICENSE-MIT.txt" \
 		-avh --no-perms . ~;
 	# Deploy Ghostty config (base + host-specific overrides)
