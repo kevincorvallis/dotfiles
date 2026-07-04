@@ -1,0 +1,363 @@
+# Espanso AI coding triggers
+# Battle-tested prompts from Reddit, HN, Cursor forums
+# Prefix: ;ai for AI prompts, ;cc for Claude Code specific
+
+matches:
+  # ── Claude Code Behaviour (from r/ClaudeCode, 64 upvotes) ──
+  # The most validated single prompt block of 2026
+  - trigger: ";ccmd"
+    replace: |
+      ## Claude Code Behaviour Guidelines
+
+      - Avoid ownership-dodging behaviour: if you encounter an issue, take responsibility for it and work towards a solution instead of passing it on to someone else.
+      - Avoid premature stopping: if you encounter a problem, don't stop at the first obstacle. Don't say things like "good stopping point" or "natural checkpoint". Keep going until you have a complete solution.
+      - Avoid permission-seeking on reversible work: if you have the knowledge and capability, push through — don't say "should I continue?" or "want me to keep going?". EXCEPTION: for destructive or hard-to-reverse actions (force push, dropping data, deleting files, modifying shared infrastructure, posting to chat), ask before acting.
+      - Do plan multi-step approaches before acting.
+      - Do catch your own mistakes by applying reasoning loops and self-checks, and fix them before committing or asking for help.
+      - Always use a Research-First approach: read and understand the actual code before making edits. Prefer surgical edits over rewriting whole files.
+      - Apply the highest level of thinking depth. Never reason from assumptions, always reason from the actual data.
+
+  # ── Session Management ──
+  - trigger: ";cchandoff"
+    replace: "Put the rest of the plan in a handoff doc. Explain what you have tried, what worked, what didn't work, so that the next agent with fresh context can load that file and nothing else to finish the task."
+
+  - trigger: ";cclearn"
+    replace: "Review all of the relevant CLAUDE.md and other .md files and compare them to what you know now. If you can improve them, please do so."
+
+  - trigger: ";cccompact"
+    replace: "When compacting, always preserve the full list of modified files, any test commands, and the current plan state."
+
+  # ── Code Quality Prompts (Cursor forum + community) ──
+  - trigger: ";aitest"
+    replace: "Generate a comprehensive test suite for this code. Include unit tests, edge cases, and integration tests. Structure them in order of complexity."
+
+  - trigger: ";aidebug"
+    replace: "Analyze this code for potential bugs. For each issue found, explain what you're checking, why it's a problem, and how to fix it."
+
+  - trigger: ";airethink"
+    replace: "We seem to be going in circles. Stop. Look at the pattern: what do all the failed attempts have in common? What assumption are they all sharing? The bug is in that shared assumption, not in the details. Name the pattern, then break it."
+
+  - trigger: ";aiopt"
+    replace: "Optimize this code for performance. Provide 3 progressive optimizations with tradeoff explanations for each."
+
+  - trigger: ";aisecure"
+    replace: "Review this code for security vulnerabilities. For each finding, explain the risk and provide a hardened version."
+
+  - trigger: ";airefactor"
+    replace: "Refactor this code with scope discipline. Make ONLY the changes the refactor requires — don't expand to surrounding code. Don't add helpers, utilities, or abstractions for one-time operations. Don't add docstrings, comments, or type annotations to code that doesn't strictly need them. Three similar lines beats a premature abstraction. Explain each change AND what you intentionally left untouched."
+
+  - trigger: ";aidocs"
+    replace: "Generate comprehensive documentation for the code I've explicitly pointed at: function signatures, parameter descriptions, return values, usage examples, and common pitfalls. Scope: ONLY document what I pointed at — don't add docstrings or comments to surrounding code. Don't document what's already self-evident from the name."
+
+  - trigger: ";aireview"
+    replace: "Review this code as a senior engineer. Check for correctness, maintainability, security, and performance. Report EVERY issue you find, including ones you're uncertain about or consider low-severity — coverage over filtering. A downstream filter ranks them; surfacing a finding that gets filtered out is better than silently dropping a real bug. For each finding: cite `file:line`, state the failure mode, attach confidence (high/medium/low) and severity (critical/high/medium/low), and propose a concrete fix."
+
+  # ── Anti-Lazy / Completeness ──
+  - trigger: ";ainolazy"
+    replace: "Write a high-quality, general-purpose solution using the standard tools available. Implement a solution that works for all valid inputs, not just the test cases. Do not hard-code values, create helper scripts, or build workarounds to pass specific test inputs. Fully implement all requested functionality. Leave NO todos, placeholders, or missing pieces. Include all required imports. If the task is unreasonable or infeasible, or any test is incorrect, tell me — don't work around it."
+
+  # ── Maximal Claude Utilization (Anthropic-official prompt blocks) ──
+  # Sources: code.claude.com/docs/en/best-practices, platform.claude.com/docs/en/docs/build-with-claude/prompt-engineering/claude-prompting-best-practices
+  - trigger: ";ultra"
+    replace: |
+      ultrathink
+
+      <investigate_before_answering>
+      Never speculate about code you have not opened. If I reference a specific file, you MUST read the file before answering. Investigate and read every relevant file BEFORE answering questions about the codebase. Never make claims about code before investigating unless you are certain of the correct answer — give grounded and hallucination-free answers.
+      </investigate_before_answering>
+
+      <use_parallel_tool_calls>
+      If you intend to call multiple tools and there are no dependencies between the tool calls, make all of the independent tool calls in parallel. Prioritize calling tools simultaneously rather than sequentially. When reading 3 files, run 3 tool calls in parallel. Maximize parallel tool use to increase speed and efficiency. If some tool calls depend on previous calls to inform parameters, call those sequentially. Never use placeholders or guess missing parameters.
+      </use_parallel_tool_calls>
+
+      <thinking_calibration>
+      Apply the highest level of thinking depth. After receiving any tool result, reflect on its quality and determine optimal next steps before proceeding. Use thinking to plan and iterate based on new information, then take the best next action. Prefer general "think thoroughly" reasoning over prescriptive step-by-step plans.
+      </thinking_calibration>
+
+      <scope_discipline>
+      Avoid over-engineering. Only make changes that are directly requested or clearly necessary.
+      - Scope: Don't add features, refactor, or "improve" beyond what was asked. A bug fix doesn't need surrounding cleanup.
+      - Documentation: Don't add docstrings, comments, or type annotations to code you didn't change. Only add comments where the WHY is non-obvious.
+      - Defensive coding: Don't add error handling, fallbacks, or validation for scenarios that can't happen. Validate only at system boundaries (user input, external APIs).
+      - Abstractions: Don't create helpers or utilities for one-time operations. Three similar lines beats a premature abstraction.
+      - General solution: Implement code that works for all valid inputs, not just the test cases. Do not hard-code values or create solutions that pass tests artificially. If a test is wrong, say so rather than working around it.
+      </scope_discipline>
+
+      <reversibility_gate>
+      Take local, reversible actions (editing files, running tests, reading data) freely. For actions that are hard to reverse, affect shared systems, or could be destructive, ASK before proceeding. Examples requiring confirmation: deleting files, dropping tables, `rm -rf`, `git push --force`, `git reset --hard`, amending published commits, posting to chat platforms, modifying shared infrastructure. When facing an obstacle, never use destructive actions as a shortcut.
+      </reversibility_gate>
+
+      <root_cause_discipline>
+      Address root causes, not symptoms. If a build fails, fix the underlying problem — do not suppress the error, disable the check, or hide the warning. Trace failures back through the call stack, data flow, and state mutations to the actual cause before proposing a fix.
+      </root_cause_discipline>
+
+      <verification_before_completion>
+      Provide verification (tests, type-check, lint, build, screenshot, log output) for every claim of "done." If you can't verify it, do not claim it is done. Run the test suite or build command after changes. After two failed correction attempts on the same issue, stop and reassess assumptions instead of trying again. Treat any uncited assertion as a finding against yourself.
+      </verification_before_completion>
+
+      <persistence>
+      Your context window will compact automatically as it fills. Do not stop tasks early due to token-budget concerns. Save progress to memory before context refresh. Be persistent and complete tasks fully. Don't say "good stopping point," "natural checkpoint," "should I continue?" or "want me to keep going?" — push through with the knowledge and capability you have.
+      </persistence>
+
+      <delegation>
+      Use subagents for any side investigation that would flood the main context with search results, logs, or files you won't reference again. Spawn multiple subagents in the same turn when fanning out across files or hypotheses. Do NOT spawn a subagent for work you can complete directly in a single response.
+      </delegation>
+
+  # ── Audit & Verification (parallel agents) ──
+  - trigger: ";improve"
+    replace: |
+      Be exhaustively thorough. Default to /audit-pr or /investigate as the entry point, then dispatch ~15 parallel agents covering distinct scopes (one file / module / flow / contract / integration point per agent — no overlap, no duplicated reads).
+
+      Skills to invoke at the orchestrator level (not optional):
+      - superpowers:dispatching-parallel-agents — for the fan-out itself
+      - superpowers:systematic-debugging — the moment any bug is suspected
+      - superpowers:verification-before-completion — evidence before any "passing" claim
+      - code-review:code-review or /pr-review — for PR-shaped work
+      - security-review — for anything touching auth, input parsing, secrets, or storage
+      - simplify — to flag unnecessary complexity introduced by the change
+
+      Per-agent checklist (give each agent ONE narrow scope plus this list):
+      - Verify behavior matches stated intent by reading the actual code, not guessing from names, comments, or ticket descriptions.
+      - Hunt for bugs: off-by-one, race conditions, unhandled exceptions, type coercion traps, null/undefined paths, missing edge cases, misconfigured retries/timeouts, resource leaks.
+      - Validate contracts: function signatures, API shapes, Pydantic/schema alignment between producers and consumers, version compatibility, backward-compat breaks.
+      - Trace data flow end-to-end and flag silent failures — swallowed exceptions, generic 500s, dropped Pub/Sub messages, default-fallback masking real errors.
+      - Check test coverage of critical paths and edge cases. Note uncovered branches. Pants `python_tests()` auto-globs `test_*.py` and `*_test.py` — verify with `pants peek` before assuming a BUILD is broken.
+      - Cross-reference callers, tests, config, fixtures, and CLAUDE.md guidance for consistency. Stale references count as bugs.
+      - Audit security: injection, auth bypass, secret exposure in logs, unsafe deserialization, missing input validation at trust boundaries. Run sonatype-guide MCP for any third-party dependency change.
+      - Audit performance: N+1 queries, sync I/O in hot paths, missing indexes, unbounded memory, blocking calls in async code.
+
+      Verify claims against real data — never assume:
+      - `bigquery-prod` / `bigquery-dev` MCP — list datasets/tables before querying (reference the data-sources doc in memory). Confirm row counts, schema drift, view vs table, and emptiness (views can report 0 row_count in metadata).
+      - `atlassian` MCP — verify Jira ticket state, status transitions (look up the cloud ID + valid status transitions first, never one-shot), linked PRs, components vs labels.
+      - `context7` plugin — for any library/SDK/framework claim, fetch current docs instead of relying on training data.
+      - `searxng` MCP — for external documentation, blog posts, GitHub issues, vendor docs.
+      - `gemini` MCP — for an independent second opinion on architectural or correctness calls.
+      - `shortform-infra` subagent — for any splice / SFO / Ray Serve / GKE / Pub/Sub / Qdrant / BQ Shortform question; it has read-only access to the live infra.
+      - `vault-navigator` subagent — to locate prior decisions, ADRs, runbooks, or gotchas in the Paramount vault before duplicating analysis.
+      - `Explore` subagent — for broad codebase fan-out reads when the surface is unknown.
+      - `Code Reviewer`, `Security Engineer`, `Database Optimizer`, `Performance Benchmarker`, `Reality Checker`, `Test Results Analyzer` subagents — pick by category for deep-dive findings.
+
+      Do not stop at symptoms. Trace every issue back to its actual root cause.
+
+      After agents return, synthesize findings into one prioritized report: Critical → High → Medium → Low. For each finding cite `file:line` (or BQ `project.dataset.table`, Jira key, or vault note path), explain the failure mode in one sentence, and propose a concrete fix. Do not declare "looks good" or "airtight" without cited evidence backing every claim. Treat any uncited assertion as a finding against yourself.
+
+  # ── Breaking Out of Loops ──
+  - trigger: ";aistop"
+    replace: "STOP. You have attempted this fix multiple times and it is not working. Do not try again. Instead: 1) List every approach you have tried so far. 2) Explain why each one failed. 3) Identify your root assumption that may be wrong. 4) Propose a fundamentally different approach."
+
+  - trigger: ";aiassume"
+    replace: "List every assumption you are currently making about this code, this error, and this environment. For each assumption, state whether you have verified it or are guessing. Then re-examine the unverified ones."
+
+  # ── Architecture & Design ──
+  - trigger: ";aiarch"
+    replace: "Analyze the architecture of this code. Identify the key abstractions, data flow, and coupling points. Draw a dependency diagram in Mermaid. Highlight any architectural risks or violations."
+
+  - trigger: ";aiapproach"
+    replace: "Give me 3 different approaches to solve this problem. For each: explain the approach, list pros/cons, estimate complexity, and recommend which one to use and why."
+
+  - trigger: ";aitradeoff"
+    replace: "What are the tradeoffs of this approach? Consider: performance, maintainability, correctness, operational complexity, and team familiarity. What would you do differently and why?"
+
+  # ── Error & Incident Analysis ──
+  - trigger: ";aierror"
+    replace: "Analyze this error message. Explain: 1) What it literally means. 2) The most common causes. 3) How to reproduce it. 4) How to fix it. 5) How to prevent it in the future."
+
+  - trigger: ";airoot"
+    replace: "Perform a root cause analysis. Don't fix the symptom. Trace the failure back through the call stack, data flow, and state mutations to find the actual root cause. Show your reasoning chain."
+
+  # ── Context & Understanding ──
+  - trigger: ";aiexplain"
+    replace: "Explain this code step by step as if walking a new team member through it. Cover: what it does, why it exists, how the data flows, and any non-obvious gotchas."
+
+  - trigger: ";aicontext"
+    replace: "Never speculate about code you have not opened. If I reference a specific file, you MUST read it before answering. Investigate and read every relevant file (imports, callers, tests, config) BEFORE answering. Never make claims about code before investigating unless you are certain of the correct answer — give grounded, hallucination-free answers. Show me what you read."
+
+  - trigger: ";aisimplify"
+    replace: "This is too complex. Simplify it. Reduce abstractions, flatten indirection, inline single-use helpers. The goal is code a new team member can read top-to-bottom without jumping between files."
+
+  # ── Naming & Types ──
+  - trigger: ";ainame"
+    replace: "Suggest 5 better names for this. Each name should be self-documenting — a reader should understand the purpose without reading the implementation. Explain why each name is better."
+
+  - trigger: ";aitypes"
+    replace: "Add or improve the type annotations for this code. Make types as narrow and descriptive as possible. Use discriminated unions, branded types, or enums where they add clarity. No `any`."
+
+  # ── Query & Data ──
+  - trigger: ";aisql"
+    replace: "Optimize this query. Explain the current execution plan, identify bottlenecks (full scans, missing indexes, unnecessary joins), and provide an optimized version with explanation."
+
+  - trigger: ";aimigration"
+    replace: "Review this migration for safety. Check: is it reversible? Will it lock tables? Is there a backfill needed? Can it run with zero downtime? What's the rollback plan?"
+
+  # ── Git & PR ──
+  - trigger: ";aicommit"
+    replace: "Generate a commit message for these changes. ONE LINE only, under 50 chars when possible. Focus on WHY, not WHAT. No multi-line body unless I explicitly ask. NO `Co-Authored-By` lines. GPG sign with `git commit -S`."
+
+  - trigger: ";aipr"
+    replace: "Generate a pull request description for these changes. Include: a one-line summary, what changed and why, how to test it, and any risks or follow-ups."
+
+  # ── Prose / Writing ──
+  - trigger: ";aiimprove"
+    replace: "You are a skilled line editor. Improve the clarity and concision of the following prose without changing its meaning. Give me five alternatives."
+
+  - trigger: ";aifact"
+    replace: "You are a dogged and conscientious editor working as a fact checker at a renowned publication. Review this draft for things that would be embarrassing to the author."
+
+  # ── Paramount Vault Note (Cursor → Obsidian) ──
+  - trigger: ";ainote"
+    replace: |
+      Add this to my Paramount Obsidian vault at ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Paramount/.
+
+      Determine the best note type from context. Default to **daily standup** unless the content clearly fits another type:
+
+      | Type | Path | When |
+      |---|---|---|
+      | Daily standup | Daily/{{year}}/{{month_padded}} {{month_name}}/{{year}}-{{month_padded}}-{{day_padded}} Standup.md | Default. Append under ## Notes as a timestamped bullet |
+      | Runbook | Runbooks/<title>.md | Operational procedure — "how to do X" |
+      | System reference | Systems/<domain>/<title>.md | Architecture deep-dive or concept explanation |
+      | Feature work | Work/<title>.md | Multi-day effort tracking |
+      | Gotcha | Gotchas.md | Non-obvious issue — append a new entry |
+
+      Rules:
+      - If the standup file for today doesn't exist yet, create it with frontmatter: title, date ({{year}}-{{month_padded}}-{{day_padded}}), tags: [paramount, daily], type: daily
+      - If it exists, append — never overwrite
+      - Use [[wikilinks]] for cross-references to other notes
+      - Keep entries concise. Code snippets are fine but trim to the relevant part
+      - For standup entries, use format: `- HH:MM — <what I learned or did>`
+
+      Content to add:
+    vars:
+      - name: year
+        type: date
+        params:
+          format: "%Y"
+      - name: month_padded
+        type: date
+        params:
+          format: "%m"
+      - name: month_name
+        type: date
+        params:
+          format: "%B"
+      - name: day_padded
+        type: date
+        params:
+          format: "%d"
+
+  # ── Deep Vault Investigation ──
+  - trigger: ";search"
+    replace: |
+      ultrathink
+
+      Run /investigate and dispatch parallel agents to deeply traverse my Paramount Obsidian vault at ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Paramount/.
+
+      Entry points (read these FIRST before fanning out — they index each domain):
+      - Home.md — dashboard
+      - Workflow.md — daily/weekly routines
+      - Gotchas.md — non-obvious issues
+      - Systems/<domain>/_MOC.md — domain map for Infrastructure, ML, Shortform, Vendors, Repos
+      - People/_MOC.md — by team (Shortform, ML-Eng, Content-Eng, Streaming, Product, Other)
+      - Work/Features/NT/_MOC.md — Narrative Threads workstream
+      - Work/Analytics/_MOC.md — analytics backlog
+
+      Skills to invoke:
+      - superpowers:dispatching-parallel-agents — fan out
+      - superpowers:systematic-debugging — when contradictions surface
+      - superpowers:verification-before-completion — evidence before any claim
+
+      Subagents to use:
+      - vault-navigator — for "where is X documented" lookups (use this FIRST before broad search)
+      - shortform-infra — for splice / SFO / Ray / GKE / Pub-Sub / BQ Shortform questions; queries live infra
+      - Explore — for broad fan-out reads when scope is unknown
+
+      Verify factual claims against real data — never assume vault notes are current:
+      - bigquery-prod / bigquery-dev MCP — confirm dataset/table existence, row counts, schema (cite project.dataset.table)
+      - atlassian MCP — verify Jira ticket state, transitions, linked PRs (look up the cloud ID first)
+      - searxng MCP — for any external reference cited in a note
+      - context7 plugin — for any library/SDK API claim
+
+      Hunt for:
+      - Stale wikilinks ([[Note]] pointing to a renamed/deleted file)
+      - Frontmatter drift (missing title/date/tags/type, or tag misuse)
+      - Contradicting ADRs in Decisions/
+      - Notes older than the most recent commit on the same topic (date in frontmatter < git log mtime)
+      - Person notes missing from People/_MOC
+      - System deep-dives missing from their domain _MOC
+      - Conflicting information across two notes — surface BOTH, don't pick one silently
+      - Memory entries (~/.claude/projects/.../memory/) that disagree with current vault state
+      - Open questions / unresolved gotchas that have answers elsewhere in the vault
+
+      Synthesize one report:
+      Findings → Conflicts → Stale References → Open Questions → Memory/Vault Drift
+
+      For every line, cite the vault note path (e.g. `Systems/ML/Embeddings/Qdrant Architecture.md:42`). Do not paraphrase across notes — quote the conflicting passages directly. Make every claim traceable.
+
+      Investigation question:
+
+  # ── Meeting → Vault Propagation (post-meeting hygiene) ──
+  - trigger: ";meetsync"
+    replace: |
+      ultrathink
+
+      The content below is meeting notes / transcript / pasted summary. Propagate it across my Paramount Obsidian vault with full hygiene.
+
+      Vault: ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/Paramount/
+      Today: {{year}}-{{month_padded}}-{{day_padded}}
+
+      Step 1 — Parse:
+      - Meeting type (1-1, sync, planning, design review, retro, demo, all-hands, interview)
+      - Date (default to today if not stated)
+      - Attendees — cross-reference People/ via vault-navigator subagent. Flag any names not yet in People/.
+      - Topics, decisions, action items, blockers, open questions, dates mentioned
+      - Any architectural or system reference (splice, SFO, NT, Voyager, Facet, Qdrant, VionLabs, etc.)
+      - Any Jira tickets (AMLG-NNNN) — use atlassian MCP to verify status
+
+      Step 2 — Update everywhere relevant (use vault-navigator + Explore subagents to find ALL impacted files BEFORE editing):
+
+      | If the meeting touches… | Update… |
+      |---|---|
+      | Anything | Daily/{{year}}/Week-NN/{{year}}-{{month_padded}}-{{day_padded}} Day Standup.md (append summary under ## Notes) |
+      | A formal meeting | Work/Meetings/{{year}}-{{month_padded}}-{{day_padded}} <slug>.md (create from Meeting template) |
+      | Per attendee | People/<team>/<name>.md (append observation, quote, or decision under a dated bullet) |
+      | A 1-1 | People/<team>/<name>.md AND Career/ if career discussion |
+      | Architecture / system | Systems/<domain>/<note>.md (update or append; respect existing structure) |
+      | A decision was made | Decisions/ADR-NNN <Title>.md (create new ADR via /adr, or amend an existing one — never silently change) |
+      | Roadmap / priorities shifted | Plan/<roadmap or quarterly goals> |
+      | Personal goals changed | Goals/30/60/90-Day Goals.md |
+      | A non-obvious issue surfaced | Gotchas.md (append a new dated entry) |
+      | A multi-day effort started/changed | Work/<feature>.md or Work/Features/<workstream>/_MOC.md |
+      | A Jira ticket was discussed | Mention via [[AMLG-NNNN]] wikilink and confirm Jira status with atlassian MCP |
+
+      Step 3 — Conventions (already in CLAUDE.md, follow strictly):
+      - YAML frontmatter on every new note: title, date, tags, type
+      - Tags: paramount, daily, work, runbook, adr, reference, plan, goal, person, meeting
+      - Use [[wikilinks]] for cross-references — never bare markdown links
+      - Footer format: **Related:** [[Note]] | [[Note]]
+      - Standup entries: `- HH:MM — <summary>`
+      - Action items as Tasks: `- [ ] action — owner — due-date`
+      - One level of subfolders max
+      - If a Notes section in a standup grows past ~30 lines of reusable content, extract to Work/, Runbooks/, or Systems/
+
+      Step 4 — Conflict resolution (do NOT silently overwrite):
+      - If the meeting contradicts an existing note, surface BOTH passages and ask which is authoritative.
+      - If a person mentioned isn't in People/, ask whether to create them.
+      - If a decision contradicts an existing ADR, propose an amendment via /adr — don't edit the original ADR's body.
+      - If a fact contradicts a memory entry (~/.claude/projects/.../memory/), update the memory or surface the conflict.
+      - For dates: convert relative ("Thursday," "next week") to absolute (YYYY-MM-DD) before saving anywhere.
+
+      Step 5 — Update memory if anything was non-obvious:
+      - Surprising facts about people (role change, preference) → user/feedback memory
+      - Project state changes (deadline, owner, status) → project memory
+      - New external systems or references → reference memory
+
+      Step 6 — Return a summary report:
+      - Files updated (with paths)
+      - Files created (with paths)
+      - Conflicts surfaced (with both passages quoted)
+      - Action items extracted (with owner + due date)
+      - People newly mentioned (and whether you created notes for them)
+      - Memory entries added or updated
+
+      Do not fabricate. If the meeting only mentioned a name, don't invent details. If a topic was named but not discussed, don't synthesize content — just record that it was raised.
+
+      Meeting content:

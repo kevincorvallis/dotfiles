@@ -1,0 +1,5 @@
+# Espanso global config
+backend: auto
+
+# Disable search bar shortcut (conflicts with Raycast Option+Space)
+search_shortcut: off

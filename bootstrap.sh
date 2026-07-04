@@ -43,6 +43,13 @@ doIt() {
 		cp .config/claude/CLAUDE.md ~/.claude/CLAUDE.md
 		[ -d ".config/claude/agents" ] && cp .config/claude/agents/* ~/.claude/agents/
 	fi
+	# Deploy Espanso config (match snippets + global config)
+	if [ -d ".config/espanso" ]; then
+		espanso_dir="$HOME/Library/Application Support/espanso"
+		mkdir -p "$espanso_dir/match" "$espanso_dir/config"
+		[ -d ".config/espanso/match" ] && cp .config/espanso/match/*.yml "$espanso_dir/match/"
+		[ -d ".config/espanso/config" ] && cp .config/espanso/config/*.yml "$espanso_dir/config/"
+	fi
 	if [[ "$current_shell" == *"zsh" ]]; then
 		if [ ! -e ~/.zshrc ]; then
 			ln -s ~/.bash_profile ~/.zshrc

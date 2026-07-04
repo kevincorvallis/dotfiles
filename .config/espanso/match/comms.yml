@@ -1,0 +1,72 @@
+# Email & communication — sign-offs, polite phrases
+# From Nikola (dev.to), jhelvy, Lissy93
+
+matches:
+  # ── Sign-offs ─────────────────────────────────
+  - trigger: ";signoff"
+    replace: "{{choice}}"
+    vars:
+      - name: choice
+        type: choice
+        params:
+          values:
+            - "Best,\nKevin"
+            - "Thanks,\nKevin"
+            - "Cheers,\nKevin"
+            - "Regards,\nKevin Lee"
+
+  - trigger: ";kr"
+    replace: "Kind regards,\nKevin"
+
+  # ── Quick Replies ─────────────────────────────
+  - trigger: ";ty"
+    replace: "Thank you!"
+
+  - trigger: ";lmk"
+    replace: "Please let me know if you have any questions."
+
+  - trigger: ";sgtm"
+    replace: "Sounds good to me!"
+
+  - trigger: ";wfm"
+    replace: "Works for me!"
+
+  - trigger: ";ack"
+    replace: "Acknowledged — I'll take a look."
+
+  - trigger: ";otw"
+    replace: "On it — will update you shortly."
+
+  - trigger: ";tldr"
+    replace: "TL;DR: "
+
+  # ── PR Description ────────────────────────────
+  - trigger: ";prdesc"
+    replace: |
+      ## Summary
+      $|$
+
+      Ticket: [AMLG-](https://paramount.atlassian.net/browse/AMLG-)
+
+      ## What changed and why
+      -
+
+      ## Testing
+      -
+
+      ## Risks & follow-ups
+      -
+
+  # ── Faces ─────────────────────────────────────
+  - trigger: ";lenny"
+    replace: "{{choice}}"
+    vars:
+      - name: choice
+        type: choice
+        params:
+          values:
+            - "¯\\_(ツ)_/¯"
+            - "(╯°□°)╯︵ ┻━┻"
+            - "ʕ•ᴥ•ʔ"
+            - "(づᵔ◡ᵔ)づ"
+            - "( ͡° ͜ʖ ͡°)"

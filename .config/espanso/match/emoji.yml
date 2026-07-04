@@ -1,0 +1,48 @@
+# High-use emoji shortcuts
+# Convention: ; prefix, mirrors symbols.yml
+
+matches:
+  # ── Punctuation / emphasis ────────────────────
+  - trigger: ";!"
+    replace: "❗"
+  - trigger: ";?"
+    replace: "❓"
+
+  # ── Reactions ─────────────────────────────────
+  - trigger: ";fire"
+    replace: "🔥"
+  - trigger: ";100"
+    replace: "💯"
+  - trigger: ";tada"
+    replace: "🎉"
+  - trigger: ";rocket"
+    replace: "🚀"
+  - trigger: ";eyes"
+    replace: "👀"
+  - trigger: ";brain"
+    replace: "🧠"
+
+  # ── Status (PR / ticket vibe) ─────────────────
+  - trigger: ";ok"
+    replace: "✅"
+  - trigger: ";no"
+    word: true
+    replace: "❌"
+  - trigger: ";caution"
+    replace: "⚠️"
+  - trigger: ";const"
+    replace: "🚧"
+  - trigger: ";ship"
+    replace: "🚢"
+
+  # ── People / hands ────────────────────────────
+  - trigger: ";+1"
+    replace: "👍"
+  - trigger: ";-1"
+    replace: "👎"
+  - trigger: ";wave"
+    replace: "👋"
+  - trigger: ";pray"
+    replace: "🙏"
+  - trigger: ";clap"
+    replace: "👏"

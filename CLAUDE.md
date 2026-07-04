@@ -30,6 +30,7 @@ Rsyncs dotfiles to `~/` with explicit excludes (`.git/`, `.claude/`, `.config/`,
 - Aerospace config → `~/.config/aerospace/aerospace.toml`
 - Starship config → `~/.config/starship/starship.toml`
 - Claude Code config → `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, `~/.claude/agents/`
+- Espanso config → `~/Library/Application Support/espanso/match/` and `~/Library/Application Support/espanso/config/`
 
 ### App Configs
 
@@ -40,6 +41,8 @@ Rsyncs dotfiles to `~/` with explicit excludes (`.git/`, `.claude/`, `.config/`,
 - `.config/claude/settings.json` — Claude Code permissions, plugins, and allowed tools
 - `.config/claude/CLAUDE.md` — Global Claude Code instructions
 - `.config/claude/agents/librarian.md` — Custom "Librarian" research agent
+- `.config/espanso/match/*.yml` — Text-expansion snippets (ai, base, comms, dev, git, markdown, symbols)
+- `.config/espanso/config/default.yml` — Espanso global config (disables search bar to avoid Raycast collision)
 
 ### Other
 

@@ -1,0 +1,59 @@
+# Markdown shortcuts — essential for Obsidian-heavy workflows
+# ;mdl is universally cited as the #1 most loved Espanso trigger
+
+matches:
+  # ── Links & Images ────────────────────────────
+  - trigger: ";mdl"
+    replace: "[$|$]({{clipboard}})"
+    vars:
+      - name: "clipboard"
+        type: "clipboard"
+
+  - trigger: ";img"
+    replace: "![]({{clipboard}})"
+    vars:
+      - name: "clipboard"
+        type: "clipboard"
+
+  # ── Code Blocks ───────────────────────────────
+  - trigger: ";code"
+    word: true
+    replace: "```\n$|$\n```"
+
+  - trigger: ";codepy"
+    replace: "```python\n$|$\n```"
+
+  - trigger: ";codesh"
+    replace: "```bash\n$|$\n```"
+
+  - trigger: ";codets"
+    replace: "```typescript\n$|$\n```"
+
+  - trigger: ";codesql"
+    replace: "```sql\n$|$\n```"
+
+  - trigger: ";codeyml"
+    replace: "```yaml\n$|$\n```"
+
+  - trigger: ";codemd"
+    replace: "```mermaid\n$|$\n```"
+
+  # ── Callouts (Obsidian) ───────────────────────
+  - trigger: ";note"
+    replace: "> [!note]\n> $|$"
+
+  - trigger: ";warn"
+    replace: "> [!warning]\n> $|$"
+
+  - trigger: ";tip"
+    replace: "> [!tip]\n> $|$"
+
+  - trigger: ";info"
+    replace: "> [!info]\n> $|$"
+
+  # ── Formatting ────────────────────────────────
+  - trigger: ";collapse"
+    replace: "<details>\n<summary>$|$</summary>\n\n</details>"
+
+  - trigger: ";tbl"
+    replace: "| $|$ |  |  |\n|---|---|---|\n|  |  |  |"

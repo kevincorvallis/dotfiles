@@ -1,0 +1,34 @@
+# Git commands — the most universally shared Espanso category
+# Every dotfile repo (Lissy93, jimbrig, Nikola) includes these
+
+matches:
+  - trigger: ";gs"
+    word: true
+    replace: "git status"
+  - trigger: ";ga"
+    replace: "git add "
+  - trigger: ";gc"
+    word: true
+    replace: "git commit -S -m \"$|$\""
+  - trigger: ";gp"
+    replace: "git push"
+  - trigger: ";gl"
+    word: true
+    replace: "git log --oneline -20"
+  - trigger: ";gd"
+    replace: "git diff"
+  - trigger: ";gco"
+    replace: "git checkout "
+  - trigger: ";gcb"
+    replace: "git checkout -b "
+  - trigger: ";gst"
+    word: true
+    replace: "git stash"
+  - trigger: ";gsp"
+    replace: "git stash pop"
+  - trigger: ";gfa"
+    replace: "git fetch --all --prune"
+  - trigger: ";grb"
+    replace: "git rebase "
+  - trigger: ";gcp"
+    replace: "git cherry-pick "

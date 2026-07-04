@@ -1,0 +1,40 @@
+# Special characters — arrows, typography, currency
+# From Lissy93/espanso-config (133 stars)
+
+matches:
+  # ── Arrows ────────────────────────────────────
+  - trigger: ";->"
+    replace: "→"
+  - trigger: ";<-"
+    replace: "←"
+  - trigger: ";=>"
+    replace: "⇒"
+  - trigger: ";up"
+    word: true
+    replace: "↑"
+  - trigger: ";dn"
+    replace: "↓"
+
+  # ── Typography ────────────────────────────────
+  - trigger: ";--"
+    replace: "—"
+  - trigger: ";..."
+    replace: "…"
+  - trigger: ";deg"
+    replace: "°"
+  - trigger: ";check"
+    replace: "✓"
+  - trigger: ";xx"
+    replace: "✗"
+  - trigger: ";star"
+    replace: "★"
+  - trigger: ";bullet"
+    replace: "•"
+
+  # ── Legal / Business ──────────────────────────
+  - trigger: ";tm"
+    replace: "™"
+  - trigger: ";(c)"
+    replace: "©"
+  - trigger: ";(r)"
+    replace: "®"

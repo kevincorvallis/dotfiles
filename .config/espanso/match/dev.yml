@@ -1,0 +1,119 @@
+# Developer utilities — clipboard transforms, generators, search URLs
+# Curated from Lissy93, jimbrig, Nathan Smith configs
+
+matches:
+  # ── Generators ────────────────────────────────
+  - trigger: ";uuid"
+    replace: "{{output}}"
+    vars:
+      - name: output
+        type: shell
+        params:
+          cmd: "uuidgen | tr '[:upper:]' '[:lower:]'"
+
+  - trigger: ";rand"
+    replace: "{{output}}"
+    vars:
+      - name: output
+        type: shell
+        params:
+          cmd: "openssl rand -hex 16"
+
+  # ── System Info ───────────────────────────────
+  - trigger: ";ip"
+    replace: "{{output}}"
+    vars:
+      - name: output
+        type: shell
+        params:
+          cmd: "curl -s 'https://api.ipify.org'"
+
+  - trigger: ";week"
+    replace: "{{output}}"
+    vars:
+      - name: output
+        type: shell
+        params:
+          cmd: "date +W%V"
+
+  - trigger: ";quarter"
+    replace: "{{output}}"
+    vars:
+      - name: output
+        type: shell
+        params:
+          cmd: "echo Q$(( ($(date +%-m) - 1) / 3 + 1 ))"
+
+  # ── Clipboard Transforms ──────────────────────
+  - trigger: ";upper"
+    replace: "{{output}}"
+    vars:
+      - name: clipboard
+        type: clipboard
+      - name: output
+        type: shell
+        params:
+          cmd: "echo '{{clipboard}}' | tr '[:lower:]' '[:upper:]'"
+
+  - trigger: ";lower"
+    replace: "{{output}}"
+    vars:
+      - name: clipboard
+        type: clipboard
+      - name: output
+        type: shell
+        params:
+          cmd: "echo '{{clipboard}}' | tr '[:upper:]' '[:lower:]'"
+
+  - trigger: ";urlencode"
+    replace: "{{output}}"
+    vars:
+      - name: clipboard
+        type: clipboard
+      - name: output
+        type: shell
+        params:
+          cmd: "python3 -c \"import urllib.parse; print(urllib.parse.quote('{{clipboard}}'))\""
+
+  # ── Search URLs ───────────────────────────────
+  - trigger: ";goog"
+    replace: "https://google.com/search?q=$|$"
+
+  - trigger: ";ghsearch"
+    replace: "https://github.com/search?q=$|$"
+
+  - trigger: ";so"
+    replace: "https://stackoverflow.com/search?q=$|$"
+
+  - trigger: ";splice"
+    replace: "https://github.com/cbsiamlg/splice/pull/$|$"
+
+  # ── Lint Suppression ──────────────────────────
+  - trigger: ";nolint"
+    replace: "// eslint-disable-next-line "
+
+  - trigger: ";nocheck"
+    replace: "// @ts-expect-error - "
+
+  - trigger: ";notype"
+    replace: "# type: ignore"
+
+  - trigger: ";noqa"
+    replace: "  # noqa: "
+
+  # ── Debug / Logging ───────────────────────────
+  - trigger: ";clog"
+    replace: "console.log({{clipboard}});"
+    vars:
+      - name: "clipboard"
+        type: "clipboard"
+
+  - trigger: ";pprint"
+    replace: "from pprint import pprint; pprint($|$)"
+
+  # ── Shebangs ──────────────────────────────────
+  - trigger: ";#bash"
+    replace: "#!/usr/bin/env bash"
+
+  - trigger: ";#zsh"
+    replace: "#!/usr/bin/env zsh"
