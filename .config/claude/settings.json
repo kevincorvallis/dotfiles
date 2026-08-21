@@ -92,14 +92,54 @@
       "WebFetch(domain:en.wikipedia.org)",
       "WebFetch(domain:en.m.wikipedia.org)"
     ],
-    "defaultMode": "default"
+    "defaultMode": "auto"
   },
+  "model": "opus[1m]",
   "enabledPlugins": {
     "github@claude-plugins-official": true,
     "vercel@claude-plugins-official": true,
     "agent-sdk-dev@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true,
     "ralph-loop@claude-plugins-official": true,
-    "sonatype-guide@claude-plugins-official": true
-  }
+    "sonatype-guide@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "andrej-karpathy-skills@karpathy-skills": true,
+    "codex@openai-codex": true
+  },
+  "extraKnownMarketplaces": {
+    "qdrant": {
+      "source": {
+        "source": "github",
+        "repo": "qdrant/skills"
+      }
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "forrestchang/andrej-karpathy-skills"
+      }
+    },
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      }
+    }
+  },
+  "effortLevel": "low",
+  "advisorModel": "fable",
+  "autoUpdatesChannel": "stable",
+  "autoDreamEnabled": true,
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto",
+  "verbose": true,
+  "autoCompactEnabled": true,
+  "skipAutoPermissionPrompt": true
 }

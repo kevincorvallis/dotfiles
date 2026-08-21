@@ -42,6 +42,7 @@ doIt() {
 		cp .config/claude/settings.json ~/.claude/settings.json
 		cp .config/claude/CLAUDE.md ~/.claude/CLAUDE.md
 		[ -d ".config/claude/agents" ] && cp .config/claude/agents/* ~/.claude/agents/
+		[ -d ".config/claude/skills" ] && mkdir -p ~/.claude/skills && cp -r .config/claude/skills/* ~/.claude/skills/
 	fi
 	# Deploy Espanso config (match snippets + global config)
 	if [ -d ".config/espanso" ]; then
