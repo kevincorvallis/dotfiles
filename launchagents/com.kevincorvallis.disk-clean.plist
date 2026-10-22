@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: bootstrap.sh (launchagents flag) replaces __HOME__ with $HOME (launchd does not expand ~). -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.kevincorvallis.disk-clean</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>__HOME__/bin/disk-clean</string>
+		<string>clean</string>
+	</array>
+
+	<!-- Daily 07:00. If the Mac was asleep, launchd runs it once on wake; if it was powered off,
+	     RunAtLoad covers it at next login. Idempotent, so double runs are harmless. Only the
+	     age-gated safe set runs here, never the deep, worktrees or volumes options. -->
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key><integer>7</integer>
+		<key>Minute</key><integer>0</integer>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:__HOME__/bin:__HOME__/.local/bin</string>
+	</dict>
+
+	<key>StandardOutPath</key>
+	<string>__HOME__/Library/Logs/disk-clean.log</string>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/Library/Logs/disk-clean.log</string>
+</dict>
+</plist>

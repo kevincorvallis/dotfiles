@@ -1,53 +1,51 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code in this repo: Kevin's macOS (Apple Silicon) dotfiles. The repo is public. Files are deployed by copying, not symlinking. README.md has the layout and SETUP.md the new-Mac runbook.
 
-## Overview
+## Commands
 
-macOS dotfiles for Apple Silicon, based on Mathias Bynens' dotfiles. Shell config files are rsynced to `~/` via `bootstrap.sh`; app configs (Ghostty, Aerospace, Starship) are copied to their platform-specific locations.
+- `bash scripts/check.sh [--offline]` runs every repo check (CI runs it too). Run it after any change.
+- `bash scripts/doctor.sh` checks this Mac against SETUP.md and lists each gap as `TODO [you]` or `[agent]`. It is read-only; run it outside the sandbox. To set up a new Mac, follow SETUP.md's "For the agent" section.
+- `bash bootstrap.sh -n` is a drift report and writes nothing. `bash bootstrap.sh [-f] [--launchagents]` deploys.
+- Test bootstrap only against a throwaway HOME: `HOME=$(mktemp -d) bash bootstrap.sh -f`. Don't run bootstrap, `--launchagents` or `.macos` against the real HOME unless asked.
+- `brew bundle --file=Brewfile` installs packages. `./.macos` applies system settings; it needs Full Disk Access and asks for sudo itself.
 
-## Key Commands
+## Deploy (bootstrap.sh)
 
-- **Install dotfiles**: `bash bootstrap.sh` (or `bootstrap.sh -f` to skip confirmation)
-- **Install packages**: `brew bundle --file=Brewfile`
-- **Apply macOS settings**: `./.macos` (or `./.macos --no-dark-mode`)
-- **Reload shell**: `source ~/.zshrc`
+An explicit allowlist. Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` and then replaced. Extra files in a destination are never deleted.
 
-## Architecture
+- `.zshrc .exports .aliases .functions .gitconfig .gitignore .vimrc .vim/ .tmux.conf .curlrc .hushlogin .inputrc` go to `~/`.
+- `bin/*` goes to `~/bin/` and is made executable.
+- `.config/ghostty/config`, plus `hosts/<scutil --get LocalHostName>` appended when that file exists, goes to `~/Library/Application Support/com.mitchellh.ghostty/config`.
+- `.config/{aerospace,starship,atuin}/` go to `~/.config/`. `.config/karabiner/karabiner.json` is copied only if absent.
+- `.config/espanso/{config,match}/*.yml` go to `~/Library/Application Support/espanso/`.
+- `.config/sublime/User/*` goes to Sublime Text's `Packages/User/`.
+- `.config/claude/` goes to `~/.claude/`: settings.json, CLAUDE.md, AGENT-GRAPH.md, and the agents, commands, rules, skills, output-styles, scripts and hooks dirs (`hooks/*.sh` made executable).
+- `.config/mcp/*` goes to `~/.local/share/mcp/`.
+- `launchagents/*.plist` go to `~/Library/LaunchAgents/` only with `--launchagents`. `__HOME__` becomes `$HOME`, and launchctl reloads any agent that changed or isn't loaded.
+- Never deployed: this file, README.md, SETUP.md, LICENSE-MIT.txt, Brewfile, .macos, scripts/, .github/, `*.example` and .claude/.
 
-Shell loads in this order: `.zshrc` → sources `.exports`, `.aliases`, `.functions`, `.extra` (from `~`) → then inits zsh plugins and modern tools
+This `CLAUDE.md` is repo guidance. `.config/claude/CLAUDE.md` is the global file that becomes `~/.claude/CLAUDE.md`.
 
-- `.zshrc` — Zsh options, completions, loads shared dotfiles, then inits plugins (autosuggestions, syntax-highlighting) and tools (starship, zoxide, atuin, direnv)
-- `.exports` — PATH, editor, locale, tool configs (fzf, bat, starship)
-- `.aliases` — All aliases; conditionally uses modern CLI tools (eza, bat, fd, rg, zoxide) with fallbacks
-- `.functions` — Shell functions (server, mkd, targz, etc.)
-- `.extra` — Private/untracked overrides (git credentials, personal aliases)
+To add a deployed path, update `bootstrap.sh`, `deploy_map()` in `scripts/check.sh`, and the README layout table.
 
-### bootstrap.sh
+## Shell
 
-Rsyncs dotfiles to `~/` with explicit excludes (`.git/`, `.claude/`, `.config/`, `Brewfile`, docs). Then separately copies:
-- Ghostty config → `~/Library/Application Support/com.mitchellh.ghostty/config` (base + host-specific overlay from `.config/ghostty/hosts/$(hostname -s)`)
-- Aerospace config → `~/.config/aerospace/aerospace.toml`
-- Starship config → `~/.config/starship/starship.toml`
-- Claude Code config → `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, `~/.claude/agents/`
-- Espanso config → `~/Library/Application Support/espanso/match/` and `~/Library/Application Support/espanso/config/`
+- `.zshrc`, in order: PATH and Homebrew; history, including `HISTORY_IGNORE` for secret-looking lines; completion; the paste-oneline widget. It then sources `~/.exports`, `~/.aliases`, `~/.functions` and `~/.extra`. Last come the guarded tool inits: autosuggestions, fzf, starship, zoxide, atuin, direnv and the gh token, with syntax-highlighting at the very end.
+- `.exports`: env vars, and `DOTFILES` (the repo path, default `~/code/personal/dotfiles`).
+- `.aliases`: `cd`→z, `ls`→eza and `cat`→bat only in an interactive terminal outside Claude Code (`CLAUDECODE` unset). `edit` opens `$DOTFILES`.
+- `.functions`: `update()` only.
 
-### App Configs
+## Machine-local overlays (untracked; bootstrap never writes them)
 
-- `.config/ghostty/config` — Base Ghostty terminal config
-- `.config/ghostty/hosts/<hostname>` — Per-host Ghostty overrides (e.g., theme), appended to base config during bootstrap
-- `.config/aerospace/aerospace.toml` — Aerospace tiling WM config (alt-hjkl nav, workspaces 1-6)
-- `.config/starship/starship.toml` — Starship prompt config (green Matrix aesthetic)
-- `.config/claude/settings.json` — Claude Code permissions, plugins, and allowed tools
-- `.config/claude/CLAUDE.md` — Global Claude Code instructions
-- `.config/claude/agents/librarian.md` — Custom "Librarian" research agent
-- `.config/espanso/match/*.yml` — Text-expansion snippets (ai, base, comms, dev, git, markdown, symbols)
-- `.config/espanso/config/default.yml` — Espanso global config (disables search bar to avoid Raycast collision)
+- `~/.extra` (template `.extra.example`): per-machine exports and secrets read from the Keychain. No `git config` calls.
+- `~/.gitconfig.local`, included last by `.gitconfig`: other identities and commit signing. Tracked files carry no signing config.
+- espanso `match/private.yml` (template `match/private.yml.example`): identity snippets, and any machine-only triggers.
+- `~/.mcp.json` (from `.config/mcp/mcp.json.example`) and `~/.claude/settings.local.json`.
 
-### Other
+## Rules
 
-- `.macos` — macOS `defaults write` commands (~33KB); requires sudo, some settings need logout/restart
-- `.gitconfig` — Uses delta as pager; has URL shorthands (`gh:` → `git@github.com:`)
-- `Brewfile` — Homebrew packages, cask apps (Ghostty, Aerospace, Sublime Text), Nerd Fonts
-- `bin/subl` — Symlink to Sublime Text CLI
-- `init/Preferences.sublime-settings` — Sublime Text preferences
+- Edit the repo copy, never the deployed copy in `~`.
+- `bootstrap.sh`, `.macos`, `scripts/check.sh` and the bash scripts in `bin/` must run on macOS `/bin/bash` 3.2. That rules out associative arrays, `mapfile`, `${x,,}` and `|&`.
+- Public repo: no secrets, no `/Users/<name>` paths (use `$HOME`), no employer or work identifiers, no real personal details. check.sh fails on these.
+- Every hook referenced in `.config/claude/settings.json` must exist in the repo.

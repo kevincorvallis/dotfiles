@@ -1,6 +1,28 @@
 #!/usr/bin/env bash
 
-# ~/.macos — https://mths.be/macos
+# .macos — https://mths.be/macos
+# Run from the repo as your normal user (not with sudo): ./.macos
+# It asks for sudo itself. Log out afterwards; some settings need it.
+
+if [ "$(uname -s)" != "Darwin" ]; then
+	echo "This script only runs on macOS." >&2
+	exit 1
+fi
+
+if [ "$(id -u)" -eq 0 ]; then
+	echo "Run ./.macos as your normal user, not with sudo (user settings would land in root's domain)." >&2
+	exit 1
+fi
+
+# Preflight: com.apple.universalaccess (and Mail) are TCC-protected, so their
+# writes fail unless this terminal has Full Disk Access. This key is set again
+# below, so the probe has no extra side effect.
+if ! defaults write com.apple.universalaccess reduceWhitePoint -bool true 2>/dev/null; then
+	echo "Grant Full Disk Access to the terminal app running this (Ghostty or Terminal):" >&2
+	echo "  System Settings → Privacy & Security → Full Disk Access" >&2
+	echo "Then quit and relaunch that terminal and re-run ./.macos" >&2
+	exit 1
+fi
 
 # Close any open System Preferences panes, to prevent them from overriding
 # settings we’re about to change
@@ -11,15 +33,6 @@ sudo -v
 
 # Keep-alive: update existing `sudo` time stamp until `.macos` has finished
 while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
-
-ENABLE_DARK_MODE=${ENABLE_DARK_MODE:-true}
-for arg in "$@"; do
-  case "$arg" in
-    --no-dark-mode)
-      ENABLE_DARK_MODE=false
-      ;;
-  esac
-done
 
 ###############################################################################
 # General UI/UX                                                               #
@@ -106,16 +119,13 @@ defaults write com.apple.print.PrintingPrefs "Quit When Finished" -bool true
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user 2>/dev/null
 
 # Disable Resume system-wide
-defaults write com.apple.systempreferences NSQuitAlwaysKeepsWindows -bool false
+defaults write NSGlobalDomain NSQuitAlwaysKeepsWindows -bool false
 
 # Disable automatic termination of inactive apps
 defaults write NSGlobalDomain NSDisableAutomaticTermination -bool true
 
 # Disable the crash reporter
 #defaults write com.apple.CrashReporter DialogType -string "none"
-
-# Set Help Viewer windows to non-floating mode
-defaults write com.apple.helpviewer DevMode -bool true
 
 # Fix for the ancient UTF-8 bug in QuickLook (https://mths.be/bbo)
 # Commented out, as this is known to cause problems in various Adobe apps :(
@@ -155,6 +165,9 @@ defaults write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
 # Trackpad, mouse, keyboard, Bluetooth accessories, and input                 #
 ###############################################################################
 
+# The trackpad settings below only matter with a Magic Trackpad attached
+# (harmless otherwise).
+
 # Trackpad: enable tap to click for this user and for the login screen
 defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad Clicking -bool true
 defaults -currentHost write NSGlobalDomain com.apple.mouse.tapBehavior -int 1
@@ -169,9 +182,9 @@ defaults -currentHost write NSGlobalDomain com.apple.trackpad.enableSecondaryCli
 # Keep natural scrolling enabled (default macOS behavior)
 # defaults write NSGlobalDomain com.apple.swipescrolldirection -bool false
 
-# Enable full keyboard access for all controls
-# (e.g. enable Tab in modal dialogs)
-defaults write NSGlobalDomain AppleKeyboardUIMode -int 3
+# Enable keyboard navigation: Tab moves focus between all controls
+# (2 is what System Settings → Keyboard → Keyboard navigation writes)
+defaults write NSGlobalDomain AppleKeyboardUIMode -int 2
 
 # Use scroll gesture with the Ctrl (^) modifier key to zoom
 defaults write com.apple.universalaccess closeViewScrollWheelToggle -bool true
@@ -189,7 +202,9 @@ defaults write NSGlobalDomain InitialKeyRepeat -int 10
 # Set language and text formats
 # Note: if you’re in the US, replace `EUR` with `USD`, `Centimeters` with
 # `Inches`, `en_GB` with `en_US`, and `true` with `false`.
-defaults write NSGlobalDomain AppleLanguages -array "en_US"
+# Preferred languages: English, then Korean. The Korean input source is a
+# separate setting: System Settings → Keyboard → Input Sources → 2-Set Korean.
+defaults write NSGlobalDomain AppleLanguages -array "en-US" "ko-US"
 defaults write NSGlobalDomain AppleLocale -string "en_US@currency=USD"
 defaults write NSGlobalDomain AppleMeasurementUnits -string "Inches"
 defaults write NSGlobalDomain AppleMetricUnits -bool false
@@ -208,8 +223,9 @@ sudo defaults write /Library/Preferences/com.apple.loginwindow showInputMenu -bo
 # Energy saving                                                               #
 ###############################################################################
 
-# Enable lid wakeup
-sudo pmset -a lidwake 1
+# Tuned for an always-on desktop (Mac Studio): no lid, battery, standby or
+# hibernation settings. Desktops default to hibernatemode 0; don't set 3, which
+# writes a RAM-sized sleepimage to the SSD on every sleep.
 
 # Restart automatically on power loss
 sudo pmset -a autorestart 1
@@ -218,27 +234,18 @@ sudo pmset -a autorestart 1
 # Removed: sudo systemsetup can trigger mDNS hostname conflicts
 # Run manually: sudo systemsetup -setrestartfreeze on
 
-# Sleep the display after 15 minutes
-sudo pmset -a displaysleep 15
+# Sleep the display after 30 minutes
+sudo pmset -a displaysleep 30
 
-# Disable machine sleep while charging
+# Never sleep the machine on AC power (scheduled LaunchAgents fire on time)
 sudo pmset -c sleep 0
 
-# Set machine sleep to 5 minutes on battery
-sudo pmset -b sleep 5
-
-# Set standby delay to 24 hours (default is 1 hour)
-sudo pmset -a standbydelay 86400
+# Wake for network access (wake-on-LAN magic packet)
+sudo pmset -a womp 1
 
 # Never go into computer sleep mode
 # Removed: sudo systemsetup can trigger mDNS hostname conflicts
 # Run manually: sudo systemsetup -setcomputersleep Off
-
-# Hibernation mode
-# 0: Disable hibernation (speeds up entering sleep mode)
-# 3: Copy RAM to disk so the system state can still be restored in case of a
-#    power failure.
-sudo pmset -a hibernatemode 3
 
 # Note: Sleep image management is handled automatically on Apple Silicon Macs.
 # The commands below can conflict with modern power management and are skipped.
@@ -385,8 +392,9 @@ defaults write com.apple.finder FXInfoPanesExpanded -dict \
 # Enable highlight hover effect for the grid view of a stack (Dock)
 defaults write com.apple.dock mouse-over-hilite-stack -bool true
 
-# Set the icon size of Dock items to 64 pixels
-defaults write com.apple.dock tilesize -int 64
+# Set the icon size of Dock items to 53 pixels
+# (revisit once the monitors are in place: System Settings → Desktop & Dock → Size)
+defaults write com.apple.dock tilesize -int 53
 
 # Change minimize/maximize window effect
 defaults write com.apple.dock mineffect -string "scale"
@@ -443,9 +451,11 @@ defaults write com.apple.dock show-recents -bool false
 # the entire Dock support directory and break wallpaper/desktop state.
 find "${HOME}/Library/Application Support/Dock" -name "launchpad-*.db" -maxdepth 1 -delete 2>/dev/null
 
-# Add iOS Simulator to Launchpad (only if Xcode is installed)
-[ -d "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app" ] && \
+# Add iOS Simulator to /Applications (only if Xcode is installed and not already present)
+if [ -d "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app" ] && \
+   [ ! -e "/Applications/Simulator.app" ]; then
 	sudo ln -sf "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app" "/Applications/Simulator.app"
+fi
 
 # Add a spacer to the left side of the Dock (where the applications are)
 #defaults write com.apple.dock persistent-apps -array-add '{tile-data={}; tile-type="spacer-tile";}'
@@ -505,11 +515,9 @@ defaults write com.apple.mail SpellCheckingBehavior -string "NoSpellCheckingEnab
 
 # Hide Spotlight tray-icon (and subsequent helper)
 #sudo chmod 600 /System/Library/CoreServices/Search.bundle/Contents/MacOS/Search
-# Disable Spotlight indexing for any volume that gets mounted and has not yet
-# been indexed before.
 # Use `sudo mdutil -i off "/Volumes/foo"` to stop indexing any volume.
-sudo defaults write /.Spotlight-V100/VolumeConfiguration Exclusions -array "/Volumes"
 # Change indexing order and disable some search results
+# (may be ignored by the macOS 26 Spotlight; System Settings → Spotlight is authoritative)
 defaults write com.apple.spotlight orderedItems -array \
 	'{"enabled" = 1;"name" = "APPLICATIONS";}' \
 	'{"enabled" = 1;"name" = "SYSTEM_PREFS";}' \
@@ -535,65 +543,13 @@ defaults write com.apple.spotlight orderedItems -array \
 	'{"enabled" = 0;"name" = "MENU_SPOTLIGHT_SUGGESTIONS";}'
 # Make sure indexing is enabled for the main volume
 sudo mdutil -i on / > /dev/null
-# Rebuild the index from scratch
-sudo mdutil -E / > /dev/null
 
 ###############################################################################
-# Terminal & iTerm 2                                                          #
+# Terminal                                                                    #
 ###############################################################################
 
 # Only use UTF-8 in Terminal.app
 defaults write com.apple.terminal StringEncodings -array 4
-
-# Use a modified version of the Solarized Dark theme by default in Terminal.app
-THEME_FILE="${HOME}/init/Solarized Dark xterm-256color.terminal"
-if [ -f "$THEME_FILE" ]; then
-	osascript <<EOD
-
-tell application "Terminal"
-
-	local allOpenedWindows
-	local initialOpenedWindows
-	local windowID
-	set themeName to "Solarized Dark xterm-256color"
-
-	(* Store the IDs of all the open terminal windows. *)
-	set initialOpenedWindows to id of every window
-
-	(* Open the custom theme so that it gets added to the list
-	   of available terminal themes (note: this will open two
-	   additional terminal windows). *)
-	do shell script "open '$HOME/init/" & themeName & ".terminal'"
-
-	(* Wait a little bit to ensure that the custom theme is added. *)
-	delay 1
-
-	(* Set the custom theme as the default terminal theme. *)
-	set default settings to settings set themeName
-
-	(* Get the IDs of all the currently opened terminal windows. *)
-	set allOpenedWindows to id of every window
-
-	repeat with windowID in allOpenedWindows
-
-		(* Close the additional windows that were opened in order
-		   to add the custom theme to the list of terminal themes. *)
-		if initialOpenedWindows does not contain windowID then
-			close (every window whose id is windowID)
-
-		(* Change the theme for the initial opened terminal windows
-		   to remove the need to close them in order for the custom
-		   theme to be applied. *)
-		else
-			set current settings of tabs of (every window whose id is windowID) to settings set themeName
-		end if
-
-	end repeat
-
-end tell
-
-EOD
-fi
 
 # Enable “focus follows mouse” for Terminal.app and all X11 apps
 # i.e. hover over a window and start typing in it without clicking first
@@ -606,8 +562,6 @@ defaults write com.apple.terminal SecureKeyboardEntry -bool true
 
 # Disable the annoying line marks
 defaults write com.apple.Terminal ShowLineMarks -int 0
-
-# iTerm theme: install Solarized Dark manually if using iTerm
 
 ###############################################################################
 # Time Machine                                                                #
@@ -653,36 +607,27 @@ defaults write com.apple.TextEdit PlainTextEncodingForWrite -int 4
 defaults write com.apple.DiskUtility DUDebugMenuEnabled -bool true
 defaults write com.apple.DiskUtility advanced-image-options -bool true
 
-# Auto-play videos when opened with QuickTime Player
-defaults write com.apple.QuickTimePlayerX MGPlayMovieOnOpen -bool true
-
 ###############################################################################
-# Mac App Store                                                               #
+# Software Update and App Store                                               #
 ###############################################################################
 
-# Enable the WebKit Developer Tools in the Mac App Store
-defaults write com.apple.appstore WebKitDeveloperExtras -bool true
+# These live in the system domain; user-domain writes are ignored.
 
-# Enable Debug Menu in the Mac App Store
-defaults write com.apple.appstore ShowDebugMenu -bool true
+# Check for updates automatically
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
 
-# Enable the automatic update check
-defaults write com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true
+# Download new updates in the background
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool true
 
-# Download newly available updates in background
-defaults write com.apple.SoftwareUpdate AutomaticDownload -int 1
+# Install Security Responses and system data files (XProtect etc.)
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate CriticalUpdateInstall -bool true
+sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate ConfigDataInstall -bool true
 
-# Install System data files & security updates
-defaults write com.apple.SoftwareUpdate CriticalUpdateInstall -int 1
+# Install macOS updates automatically (restarts overnight; opt in by uncommenting)
+#sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true
 
-# Automatically download apps purchased on other Macs
-defaults write com.apple.SoftwareUpdate ConfigDataInstall -int 1
-
-# Turn on app auto-update
-defaults write com.apple.commerce AutoUpdate -bool true
-
-# Allow the App Store to reboot machine on macOS updates
-defaults write com.apple.commerce AutoUpdateRestartRequired -bool true
+# Install App Store app updates automatically
+sudo defaults write /Library/Preferences/com.apple.commerce AutoUpdate -bool true
 
 ###############################################################################
 # Photos                                                                      #
@@ -690,19 +635,6 @@ defaults write com.apple.commerce AutoUpdateRestartRequired -bool true
 
 # Prevent Photos from opening automatically when devices are plugged in
 defaults -currentHost write com.apple.ImageCapture disableHotPlug -bool true
-
-###############################################################################
-# Messages                                                                    #
-###############################################################################
-
-# Disable automatic emoji substitution (i.e. use plain text smileys)
-defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "automaticEmojiSubstitutionEnablediMessage" -bool false
-
-# Disable smart quotes as it’s annoying for messages that contain code
-defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "automaticQuoteSubstitutionEnabled" -bool false
-
-# Disable continuous spell checking
-defaults write com.apple.messageshelper.MessageController SOInputLineSettings -dict-add "continuousSpellCheckingEnabled" -bool false
 
 ###############################################################################
 # Google Chrome                                                               #
@@ -715,23 +647,6 @@ defaults write com.google.Chrome DisablePrintPreview -bool true
 defaults write com.google.Chrome PMPrintingExpandedStateForPrint2 -bool true
 
 ###############################################################################
-# Sublime Text                                                                #
-###############################################################################
-
-# Install Sublime Text settings
-cp -r init/Preferences.sublime-settings ~/Library/Application\ Support/Sublime\ Text/Packages/User/Preferences.sublime-settings 2> /dev/null
-
-###############################################################################
-# Rectangle.app                                                               #
-###############################################################################
-
-# Launch Rectangle at login
-defaults write com.knollsoft.Rectangle launchOnLogin -bool true
-
-# Hide menu bar icon (optional - uncomment if you want to hide it)
-# defaults write com.knollsoft.Rectangle hideMenubarIcon -bool true
-
-###############################################################################
 # Kill affected applications                                                  #
 ###############################################################################
 
@@ -741,10 +656,7 @@ for app in "Activity Monitor" \
 	"Finder" \
 	"Google Chrome" \
 	"Mail" \
-	"Messages" \
 	"Photos" \
-	"Rectangle" \
-	"Safari" \
 	"SystemUIServer" \
 	"Terminal"; do
 	killall "${app}" &> /dev/null

@@ -1,32 +1,21 @@
-# Espanso starter config — Kevin Lee @ Paramount
+# Espanso base config — identity links, dates, Obsidian, code snippets
 # Triggers prefixed with ; to avoid accidental expansion
+# Phone/address/DOB live in an untracked match/private.yml (see private.yml.example).
+# Work triggers live in an untracked work file on the work machine only.
 
 matches:
   # ── Identity ──────────────────────────────────
   - trigger: ";name"
     replace: "Kevin Lee"
 
-  - trigger: ";kemail"
-    replace: "kevin.lee1@paramount.com"
-
   - trigger: ";pemail"
+    replace: "kevincorvallis@gmail.com"
+
+  - trigger: ";pid"
     replace: "kevincorvallis@gmail.com"
 
   - trigger: ";bemail"
     replace: "kevin@pookieb.com"
-
-  - trigger: ";phone"
-    word: true
-    replace: "(555) 555-5555"
-
-  - trigger: ";phoneplain"
-    replace: "5555555555"
-
-  - trigger: ";addr1"
-    replace: "123 Main St"
-
-  - trigger: ";addr2"
-    replace: "Apt 1"
 
   - trigger: ";city"
     replace: "Los Angeles"
@@ -34,20 +23,8 @@ matches:
   - trigger: ";state"
     replace: "CA"
 
-  - trigger: ";zip"
-    replace: "00000"
-
   - trigger: ";country"
     replace: "United States"
-
-  - trigger: ";addr"
-    word: true
-    replace: |
-      123 Main St Apt 1
-      Los Angeles, CA 00000
-
-  - trigger: ";dob"
-    replace: "<FILL date of birth, e.g. 1990-01-15>"
 
   - trigger: ";gh"
     word: true
@@ -87,33 +64,13 @@ matches:
         params:
           format: "%Y-%m-%dT%H:%M:%S%z"
 
-  # ── Jira / Work ───────────────────────────────
-  - trigger: ";jira"
-    replace: "https://paramount.atlassian.net/browse/AMLG-$|$"
-
-  - trigger: ";amlg"
-    replace: "AMLG-$|$"
-
-  - trigger: ";pr"
-    word: true
-    replace: "https://github.com/cbsiamlg/$|$"
-
-  - trigger: ";prsplice"
-    replace: "https://github.com/cbsiamlg/splice/pull/$|$"
-
-  - trigger: ";prarch"
-    replace: "https://github.com/cbsiamlg/archipelago/pull/$|$"
-
-  - trigger: ";prperi"
-    replace: "https://github.com/cbsiamlg/periscope/pull/$|$"
-
   # ── Obsidian ──────────────────────────────────
   - trigger: ";fm"
     replace: |
       ---
       title: $|$
       date: {{date}}
-      tags: [paramount]
+      tags: []
       type: reference
       ---
     vars:

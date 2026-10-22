@@ -1,0 +1,24 @@
+# ~/.extra - machine-local shell overrides, sourced last by ~/.zshrc.
+# Never committed and never deployed by bootstrap.sh. To start one:
+#   cp "$DOTFILES/.extra.example" ~/.extra && chmod 600 ~/.extra
+# Everything below is commented out; uncomment what this machine needs.
+
+# --- Secrets: read them from the macOS Keychain, never paste literal tokens here ---
+# Store once (the trailing -w with no value makes `security` prompt, so the
+# secret never lands in shell history):
+#   security add-generic-password -a "$USER" -s openai-api-key -w
+# Then export it on shell start:
+# export OPENAI_API_KEY="$(security find-generic-password -w -s openai-api-key 2>/dev/null)"
+#
+# Anything exported here reaches every process, AI agent shells included.
+# Prefer a per-project direnv .envrc for project-specific tokens.
+
+# --- Machine-local paths ---
+# export DOTFILES="$HOME/src/dotfiles"     # only if the repo isn't at ~/code/personal/dotfiles
+
+# --- Git identity and signing do NOT go here ---
+# Don't set git identity here with `git config`: running it on every shell start
+# rewrites ~/.gitconfig. The tracked ~/.gitconfig includes ~/.gitconfig.local, so put overrides there:
+#   [user]
+#       email = you@example.com
+#       signingkey = ~/.ssh/id_ed25519.pub

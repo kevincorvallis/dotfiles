@@ -9,7 +9,7 @@ matches:
     replace: "git add "
   - trigger: ";gc"
     word: true
-    replace: "git commit -S -m \"$|$\""
+    replace: "git commit -m \"$|$\""
   - trigger: ";gp"
     replace: "git push"
   - trigger: ";gl"

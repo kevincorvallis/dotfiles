@@ -11,9 +11,6 @@ on-focus-changed = ['move-mouse window-lazy-center']
 enable-normalization-flatten-containers = true
 enable-normalization-opposite-orientation-for-nested-containers = true
 
-# Layout on startup
-after-startup-command = ['exec-and-forget borders active_color=0xffe1e1e1 inactive_color=0xff494d64 width=3.0']
-
 # Gaps between windows
 [gaps]
 inner.horizontal = 10
@@ -23,15 +20,17 @@ outer.bottom = 10
 outer.top = 10
 outer.right = 10
 
-# Dual monitor: pin workspaces to monitors
-# 'main' = macOS primary display, 'secondary' = the other
+# Pin workspaces to monitors (first matching pattern wins).
+# 'main' = the display set as Main in System Settings; 'secondary' = the other one,
+# but only when exactly 2 are connected. With 3+, 4-6 go to the 2nd display from
+# the left; with 1, nothing matches and 4-6 just live on the only display.
 [workspace-to-monitor-force-assignment]
 1 = 'main'
 2 = 'main'
 3 = 'main'
-4 = 'secondary'
-5 = 'secondary'
-6 = 'secondary'
+4 = ['secondary', 2]
+5 = ['secondary', 2]
+6 = ['secondary', 2]
 
 # Auto-assign apps to workspaces
 [[on-window-detected]]

@@ -1,0 +1,31 @@
+# Template for private identity triggers. Never commit real values.
+# Copy it next to the other match files and fill it in by hand:
+#   cp private.yml.example "$HOME/Library/Application Support/espanso/match/private.yml"
+# bootstrap.sh never deploys, overwrites or deletes private.yml.
+# Trigger names must stay unique across match files, or espanso shows a chooser.
+
+matches:
+  - trigger: ";phone"
+    word: true
+    replace: "(555) 555-0100"
+
+  - trigger: ";phoneplain"
+    replace: "5555550100"
+
+  - trigger: ";addr1"
+    replace: "123 Example St"
+
+  - trigger: ";addr2"
+    replace: "Apt 1"
+
+  - trigger: ";zip"
+    replace: "00000"
+
+  - trigger: ";addr"
+    word: true
+    replace: |
+      123 Example St Apt 1
+      City, ST 00000
+
+  - trigger: ";dob"
+    replace: "YYYY-MM-DD"

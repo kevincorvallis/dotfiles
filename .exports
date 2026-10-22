@@ -1,4 +1,11 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
+# ~/.exports - environment variables, sourced by ~/.zshrc (PATH lives in .zshrc)
+
+# Where the dotfiles repo lives. `edit` opens it; edit there, then re-run bootstrap.sh.
+# Override in ~/.extra if the repo is cloned somewhere else.
+if [[ -z "${DOTFILES:-}" && -d "$HOME/code/personal/dotfiles" ]]; then
+    export DOTFILES="$HOME/code/personal/dotfiles"
+fi
 
 # Make vim the default editor.
 export EDITOR='vim';
@@ -13,14 +20,6 @@ export NODE_REPL_MODE='sloppy';
 # Make Python use UTF-8 encoding for output to stdin, stdout, and stderr.
 export PYTHONIOENCODING='UTF-8';
 
-# Increase Bash history size. Allow 32³ entries; the default is 500.
-export HISTSIZE='32768';
-export HISTFILESIZE="${HISTSIZE}";
-# Omit duplicates and commands that begin with a space from history.
-export HISTCONTROL='ignoreboth';
-# Don't record commands that look like they contain sensitive data.
-export HISTIGNORE='*password*:*secret*:*token*:*key*:*API_KEY*:export *TOKEN*:export *SECRET*';
-
 # Prefer US English and use UTF-8.
 export LANG='en_US.UTF-8';
 export LC_ALL='en_US.UTF-8';
@@ -31,20 +30,20 @@ export LESS_TERMCAP_md=$'\e[1;33m';
 # Don't clear the screen after quitting a manual page.
 export MANPAGER='less -X';
 
-# iCloud directory for custom aliases
-export ICLOUD="$HOME/Library/Mobile Documents/com~apple~CloudDocs";
+# BSD `ls -G` colors (Matrix style: greens and cyans); used when eza is missing.
+export LSCOLORS='CxGxCxCxCxCxCxCxCxCxCx';
 
 # Modern CLI tool configurations
-# fzf - fuzzy finder
-if command -v fzf &> /dev/null; then
-	export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
-	export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
-	export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
+# fzf - fuzzy finder (backed by fd when available)
+if command -v fzf &> /dev/null && command -v fd &> /dev/null; then
+    export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+    export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+    export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
 fi
 
 # bat - syntax highlighting
 if command -v bat &> /dev/null; then
-	export BAT_THEME="Solarized (dark)"
+    export BAT_THEME="Solarized (dark)"
 fi
 
 # Starship prompt config location

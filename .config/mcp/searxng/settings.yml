@@ -1,0 +1,12 @@
+# SearXNG settings for the local MCP backend (see docker-compose.yml).
+# No secret here: server.secret_key comes from SEARXNG_SECRET in the untracked .env.
+use_default_settings: true
+
+server:
+  bind_address: "0.0.0.0" # inside the container; the host port is bound to 127.0.0.1
+  port: 8080
+
+search:
+  formats:
+    - html
+    - json # the MCP server queries the JSON API

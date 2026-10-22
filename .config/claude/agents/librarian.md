@@ -1,6 +1,6 @@
 ---
 name: librarian
-description: Use when a question is about open-source library internals, "how does X implement Y", or needs GitHub-permalink evidence from real code. Not for academic papers (use researcher), Paramount infra (use shortform-infra), or vault notes (use vault-navigator).
+description: Use when a question is about open-source library internals, "how does X implement Y", or needs GitHub-permalink evidence from real code. Not for academic papers (use researcher).
 model: sonnet
 ---
 

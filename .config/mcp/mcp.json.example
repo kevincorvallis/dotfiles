@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "paper-search": {
+      "command": "uvx",
+      "args": [
+        "--from", "paper-search-mcp==0.1.4",
+        "--with", "mcp>=2.3,<3",
+        "python", "${HOME}/.local/share/mcp/paper-search-improved.py"
+      ]
+    },
+    "codex": {
+      "command": "${HOME}/.local/share/mcp/.venv-mcp/bin/python",
+      "args": ["${HOME}/.local/share/mcp/codex-mcp-server.py"]
+    },
+    "gemini": {
+      "command": "${HOME}/.local/share/mcp/.venv-mcp/bin/python",
+      "args": ["${HOME}/.local/share/mcp/gemini-mcp-server.py"],
+      "env": {
+        "GEMINI_API_KEY": "${GEMINI_API_KEY:-}",
+        "GOOGLE_CLOUD_PROJECT": "${GOOGLE_CLOUD_PROJECT:-}"
+      }
+    },
+    "searxng": {
+      "command": "npx",
+      "args": ["-y", "mcp-searxng"],
+      "env": {
+        "SEARXNG_URL": "${SEARXNG_URL:-http://localhost:8080}"
+      }
+    }
+  }
+}

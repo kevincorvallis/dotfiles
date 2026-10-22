@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/usr/bin/env zsh
+# ~/.aliases - sourced by ~/.zshrc
 
 # Easier navigation: .., ..., ...., ....., ~ and -
 alias ..="cd .."
@@ -8,58 +9,40 @@ alias .....="cd ../../../.."
 alias ~="cd ~" # `cd` is probably faster to type though
 alias -- -="cd -"
 
-# Shortcuts
-alias dl="cd ~/Downloads"
-alias dt="cd ~/Desktop"
-alias p="cd ~/Downloads/Projects"
-alias g="git"
-
-# Zoxide shortcuts (smarter cd)
-if command -v zoxide &> /dev/null; then
-	alias cd="z"
-	alias cdi="zi"  # interactive selection with fzf
+# Command-replacing aliases (cd->z, ls->eza, cat->bat) only in a human terminal.
+# Scripts and agent shells (Claude Code sets CLAUDECODE) keep the real commands,
+# so POSIX flags like `ls -lt` work there and agent `cd`s stay out of zoxide.
+if [[ -o interactive && -t 1 && -z "${CLAUDECODE:-}" ]]; then
+	command -v zoxide &> /dev/null && alias cd="z"
+	if command -v eza &> /dev/null; then
+		alias ls="eza"
+	else
+		alias ls="command ls -G"
+	fi
+	command -v bat &> /dev/null && alias cat="bat --paging=never"
 fi
 
-# Modern CLI tools (eza, bat, fd, ripgrep) - use if installed
+# Listings: l long, la/ll long with dotfiles, lt tree, lsd directories only
 if command -v eza &> /dev/null; then
-	# eza is a modern replacement for ls
-	alias ls="eza"
 	alias l="eza -l"
 	alias la="eza -la"
 	alias ll="eza -la"
 	alias lt="eza -la --tree --level=2"
 	alias lsd="eza -lD"
 else
-	# Fallback to standard ls with colors
-	if ls --color > /dev/null 2>&1; then # GNU `ls`
-		colorflag="--color"
-		export LS_COLORS='no=00:fi=00:di=01;31:ln=01;36:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arj=01;31:*.taz=01;31:*.lzh=01;31:*.zip=01;31:*.z=01;31:*.Z=01;31:*.gz=01;31:*.bz2=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.jpg=01;35:*.jpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.avi=01;35:*.fli=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.ogg=01;35:*.mp3=01;35:*.wav=01;35:'
-	else # macOS `ls`
-		colorflag="-G"
-		# Matrix style: greens and cyans
-		export LSCOLORS='CxGxCxCxCxCxCxCxCxCxCx'
-	fi
-	alias l="ls -lF ${colorflag}"
-	alias la="ls -lAF ${colorflag}"
-	alias lsd="ls -lF ${colorflag} | grep --color=never '^d'"
-	alias ls="command ls ${colorflag}"
+	alias l="command ls -lFG"
+	alias la="command ls -lAFG"
+	alias ll="command ls -lAFG"
+	alias lsd="command ls -lFG | grep --color=never '^d'"
 fi
 
-# bat - better cat with syntax highlighting
-if command -v bat &> /dev/null; then
-	alias cat="bat --paging=never"
-	alias catp="bat"  # with paging
-fi
+# Variants of the modern tools: cat with paging, find/grep including ignored files, interactive z
+command -v bat &> /dev/null && alias catp="bat"
+command -v fd &> /dev/null && alias fdi="fd --no-ignore"
+command -v rg &> /dev/null && alias rgi="rg --no-ignore"
+command -v zoxide &> /dev/null && alias cdi="zi"
 
-# fd - fast find alternative
-if command -v fd &> /dev/null; then
-	alias fdi="fd --no-ignore"
-fi
-
-# ripgrep aliases
-if command -v rg &> /dev/null; then
-	alias rgi="rg --no-ignore"
-fi
+alias g="git"
 
 # Always enable colored `grep` output
 # Note: `GREP_OPTIONS="--color=auto"` is deprecated, hence the alias usage.
@@ -70,122 +53,116 @@ alias egrep='egrep --color=auto'
 # Enable aliases to be sudo’ed
 alias sudo='sudo '
 
-# Get week number
-alias week='date +%V'
+# Keep Mac awake for 10 hours in the background (long Claude Code runs); kill early with the printed pid
+alias awwke='nohup caffeinate -is -t 36000 >/dev/null 2>&1 & echo "☕ staying awake for 10h (pid $!)"'
 
-# Get macOS Software Updates, and update installed Ruby gems, Homebrew, npm, and their installed packages
-alias update='sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup; npm install npm -g; npm update -g'
+# Open the dotfiles repo (not the deployed copies in ~); run bootstrap.sh to deploy edits
+alias edit='if [[ ! -d "${DOTFILES:-}" ]]; then echo "edit: set DOTFILES to the repo path (see ~/.extra)" >&2; false; elif command -v subl >/dev/null 2>&1; then subl "$DOTFILES"; else "${EDITOR:-vi}" "$DOTFILES"; fi'
 
-# Google Chrome
-alias chrome='/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome'
-
-# IP addresses
-alias ip="dig +short myip.opendns.com @resolver1.opendns.com"
-alias localip="ipconfig getifaddr en0"
-alias ips="ifconfig -a | grep -o 'inet6\? \(addr:\)\?\s\?\(\(\([0-9]\+\.\)\{3\}[0-9]\+\)\|[a-fA-F0-9:]\+\)' | awk '{ sub(/inet6? (addr:)? ?/, \"\"); print }'"
-
-# Show active network interfaces
-alias ifactive="ifconfig | grep -B6 'status: active' | grep -o '^[a-z0-9]*'"
-
-# Flush Directory Service cache
-alias flush="dscacheutil -flushcache && killall -HUP mDNSResponder"
-
-# Clean up LaunchServices to remove duplicates in the “Open With” menu
-alias lscleanup="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user && killall Finder"
-
-# Canonical hex dump; some systems have this symlinked
-command -v hd > /dev/null || alias hd="hexdump -C"
-
-# macOS has no `md5sum`, so use `md5` as a fallback
-command -v md5sum > /dev/null || alias md5sum="md5"
-
-# macOS has no `sha1sum`, so use `shasum` as a fallback
-command -v sha1sum > /dev/null || alias sha1sum="shasum"
-
-# JavaScriptCore REPL
-jscbin="/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Resources/jsc";
-[ -e "${jscbin}" ] && alias jsc="${jscbin}";
-unset jscbin;
-
-# Trim new lines and copy to clipboard
-alias c="tr -d '\n' | pbcopy"
-
-# Recursively delete `.DS_Store` files
-alias cleanup="find . -type f -name '*.DS_Store' -ls -delete"
-
-# Empty the Trash on all mounted volumes and the main HDD.
-# Also, clear Apple’s System Logs to improve shell startup speed.
-# Finally, clear download history from quarantine. https://mths.be/bum
-alias emptytrash="sudo rm -rfv /Volumes/*/.Trashes; sudo rm -rfv ~/.Trash; sudo rm -rfv /private/var/log/asl/*.asl; sqlite3 ~/Library/Preferences/com.apple.LaunchServices.QuarantineEventsV* 'delete from LSQuarantineEvent'"
-
-# Show/hide hidden files in Finder
-alias show="defaults write com.apple.finder AppleShowAllFiles -bool true && killall Finder"
-alias hide="defaults write com.apple.finder AppleShowAllFiles -bool false && killall Finder"
-
-# Hide/show all desktop icons (useful when presenting)
-alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
-alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
-
-# URL-encode strings
-alias urlencode='python3 -c "import sys, urllib.parse; print(urllib.parse.quote_plus(sys.argv[1]))"'
-
-# Merge PDF files, preserving hyperlinks
-# Usage: `mergepdf input{1,2,3}.pdf`
-alias mergepdf='gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile=_merged.pdf'
-
-# Disable Spotlight
-alias spotoff="sudo mdutil -a -i off"
-# Enable Spotlight
-alias spoton="sudo mdutil -a -i on"
-
-# PlistBuddy alias, because sometimes `defaults` just doesn’t cut it
-alias plistbuddy="/usr/libexec/PlistBuddy"
-
-# Airport CLI was removed in modern macOS; use `networksetup` or `system_profiler SPAirPortDataType` instead
-
-# Intuitive map function
-# For example, to list all directories that contain a certain file:
-# find . -name .gitattributes | map dirname
-alias map="xargs -n1"
-
-# One of @janmoesen’s ProTip™s
-for method in GET HEAD POST PUT DELETE TRACE OPTIONS; do
-	alias "${method}"="lwp-request -m '${method}'"
-done
-
-# Stuff I never really use but cannot delete either because of http://xkcd.com/530/
-alias stfu="osascript -e 'set volume output muted true'"
-alias pumpitup="osascript -e 'set volume output volume 100'"
-
-# Kill all the tabs in Chrome to free up memory
-# [C] explained: http://www.commandlinefu.com/commands/view/402/exclude-grep-from-your-grepped-output-of-ps-alias-included-in-description
-alias chromekill="ps ux | grep '[C]hrome Helper --type=renderer' | grep -v extension-process | tr -s ' ' | cut -d ' ' -f2 | xargs kill"
-
-# Lock the screen (when going AFK)
-alias afk="pmset displaysleepnow"
-
-# Reload the shell (i.e. invoke as a login shell)
-alias reload="exec ${SHELL} -l"
-
-# Print each PATH entry on a separate line
-alias path='echo -e ${PATH//:/\\n}'
-
-# Custom aliases
-# Edit shell configuration
-alias edit='if command -v subl >/dev/null 2>&1; then subl ~/.aliases; else vi ~/.aliases; fi'
-
-# iCloud directory navigation
-alias ic="cd \"$ICLOUD\""
-alias college="cd \"$ICLOUD/School/College\""
-alias sc="cd \"$ICLOUD/School/College/USC/super_senior\""
-alias film="cd \"$ICLOUD/Personal/photos/film_photography\""
+# Directory shortcuts
+alias dw="cd \"$HOME/Downloads\""
+alias dt="cd \"$HOME/Desktop\""
+alias ic="cd \"$HOME/Library/Mobile Documents/com~apple~CloudDocs\"" # iCloud Drive
 alias obsidian="cd ~/Library/Mobile\ Documents/iCloud~md~obsidian"
 
-# Common directory shortcuts
-alias dw="cd \"$HOME/Downloads\""
+# Shell
+alias reload='exec "$SHELL" -l'
+alias path='print -l $path'   # one PATH entry per line
+alias c="tr -d '\n' | pbcopy" # copy stdin without newlines
+alias afk="pmset displaysleepnow"
+
+# Network: public IP, LAN IP (Ethernet, then Wi-Fi), flush DNS
+alias ip="dig +short myip.opendns.com @resolver1.opendns.com"
+alias localip="ipconfig getifaddr en0 || ipconfig getifaddr en1"
+alias flush="sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder"
+
+# Finder: show/hide hidden files; delete .DS_Store files below here
+alias show="defaults write com.apple.finder AppleShowAllFiles -bool true && killall Finder"
+alias hide="defaults write com.apple.finder AppleShowAllFiles -bool false && killall Finder"
+alias cleanup="find . -type f -name '*.DS_Store' -ls -delete"
 
 # Sublime Text shortcut
 alias s="subl"
 
-# YouTube downloader with optimized settings
-alias yt='yt-dlp -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]"'
+# Charging: wall draw vs. system load, net battery flow, and ETA to 80% (laptops only)
+watts() {
+	ioreg -rn AppleSmartBattery 2>/dev/null | grep -q BatteryPower || { echo "watts: no battery on this Mac" >&2; return 1; }
+	ioreg -rn AppleSmartBattery | perl -e '
+	local $/; my $d = <STDIN>;
+	# ioreg prints top-level props as "k" = v and nested dict entries as "k"=v.
+	# The spacing is the ONLY thing separating them: UpdateTime and Voltage each
+	# appear twice (top level, and nested in LifetimeData/BatteryData), so a
+	# tolerant \s* here silently picks whichever ioreg happened to print first.
+	# Negative values arrive as unsigned 64-bit, hence the pack/unpack round-trip.
+	sub num { my ($k, $top, $h) = @_; $h = $d unless defined $h;
+		my $re = $top ? qr/"\Q$k\E" = (\d+)/ : qr/"\Q$k\E"=(\d+)/;
+		my ($v) = $h =~ $re; return defined $v ? unpack("q", pack("Q", $v+0)) : undef; }
+	sub hm { my $m = shift; $m < 60 ? sprintf("%dm", $m) : sprintf("%dh %02dm", $m/60, $m%60); }
+
+	my $net = num("BatteryPower")/1000;    # W into (+) or out of (-) the battery
+	my $vb  = num("Voltage", 1)/1000;      # battery volts
+	my $age = time - (num("UpdateTime", 1) // time);
+	# macOS reports % against nominal capacity, which counts a reserve the raw
+	# gauge figure excludes. Work in nominal units so % and mAh agree.
+	my $res  = num("PackReserve", 1) // 0;
+	my $nom  = num("NominalChargeCapacity", 1) // (num("AppleRawMaxCapacity", 1) + $res);
+	my $have = num("AppleRawCurrentCapacity", 1) + $res;
+	my $want = int($nom * 0.80);
+
+	# Scope adapter fields to the AdapterDetails dict. AppleRawAdapterDetails is
+	# printed first and keeps a stale Watts after unplug, so an unscoped match
+	# reports a phantom charger. (It is an array, so " = {" excludes it.)
+	my ($ad) = $d =~ /"AdapterDetails" = \{(.*?)\}/;
+	$ad = "" unless defined $ad;
+	# Both checks: during a plug/unplug transition ExternalConnected still reads
+	# Yes for a beat after AdapterDetails has collapsed to {"FamilyCode"=0}.
+	my $w = num("Watts", 0, $ad);
+	unless ($d =~ /"ExternalConnected" = Yes/ && $w) {
+		printf "🔋 %.0f%%  (%d/%d mAh)  ·  on battery\n", $have/$nom*100, $have, $nom;
+		printf "   draw %.1f W\n", abs($net);
+		my $e = num("AvgTimeToEmpty", 1);
+		printf "   empty in %s\n", hm($e) if $e && $e != 65535;
+		exit;
+	}
+
+	printf "⚡ %dW charger  (%.1fV / %.2fA negotiated)\n",
+		$w, num("AdapterVoltage", 0, $ad)/1000, num("Current", 0, $ad)/1000;
+	printf "   from wall  %5.1f W\n", num("SystemPowerIn")/1000;
+	printf "   system     %5.1f W\n", num("SystemLoad")/1000;
+	printf "   battery   %+5.1f W  %s\n\n", $net,
+		  $net >  0.15 ? "\x1b[32m▲ charging\x1b[0m"
+		: $net < -0.15 ? "\x1b[31m▼ draining (load exceeds adapter)\x1b[0m"
+		:                "\x1b[33m● holding steady\x1b[0m";
+
+	printf "🔋 %.0f%%  (%d/%d mAh)  ·  80%% = %d mAh\n", $have/$nom*100, $have, $nom, $want;
+	if ($have >= $want) {
+		print "   already at/above 80%\n";
+	} elsif ($net > 0.15) {
+		# Derive mA from net power, not the gas gauge: the two disagree at low
+		# rates and the gauge will happily claim +13 mA while the pack drains.
+		# Linear estimate holds through constant-current, optimistic past ~80%.
+		my $ma = $net / $vb * 1000;
+		my $mins = ($want - $have) / $ma * 60;
+		printf $mins > 1440 ? "   to 80%%: %s at %.0f mA — barely trickling\n"
+		                    : "   to 80%%: ~%s  (%.0f mA)\n", hm($mins), $ma;
+	} else {
+		print "   to 80%: \x1b[31mnever at this rate\x1b[0m — lighten the load or get a bigger charger\n";
+	}
+	printf "   \x1b[2mreading %ds old\x1b[0m\n", $age;
+	'
+}
+
+# Live view. The gauge only updates every 60s, so poll cheaply and reprint on change.
+wattsw() {
+	ioreg -rn AppleSmartBattery 2>/dev/null | grep -q BatteryPower || { echo "wattsw: no battery on this Mac" >&2; return 1; }
+	local last=""
+	while :; do
+		local stamp=$(ioreg -rn AppleSmartBattery | grep -oE '"UpdateTime" = [0-9]+')
+		[[ "$stamp" != "$last" ]] && { last="$stamp"; watts; echo; }
+		sleep 5
+	done
+}
+
+# YouTube downloader: prefer H.264 (plays everywhere), fall back to any codec, merge to mp4 (needs ffmpeg)
+yt() { yt-dlp --no-playlist -f "bv*[vcodec^=avc1][ext=mp4]+ba[ext=m4a]/bv*[ext=mp4]+ba[ext=m4a]/bv*+ba/b" --merge-output-format mp4 "$@"; }
+ytmp3() { yt-dlp -x --audio-format mp3 --no-playlist "$@"; }

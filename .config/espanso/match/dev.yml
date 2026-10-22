@@ -85,9 +85,6 @@ matches:
   - trigger: ";so"
     replace: "https://stackoverflow.com/search?q=$|$"
 
-  - trigger: ";splice"
-    replace: "https://github.com/cbsiamlg/splice/pull/$|$"
-
   # ── Lint Suppression ──────────────────────────
   - trigger: ";nolint"
     replace: "// eslint-disable-next-line "

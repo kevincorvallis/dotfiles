@@ -1,4 +1,5 @@
 # Starship prompt config — green Matrix aesthetic
+command_timeout = 1000
 format = """$directory$git_branch$git_status$python$nodejs$rust$golang$package$cmd_duration$character"""
 
 [character]
@@ -14,8 +15,7 @@ format = " [$branch]($style)"
 style = "green"
 
 [git_status]
-format = "[$all_status$ahead_behind]($style) "
-style = "green"
+disabled = true
 
 [cmd_duration]
 min_time = 2_000

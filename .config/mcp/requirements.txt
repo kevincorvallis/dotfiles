@@ -1,0 +1,11 @@
+# Shared venv for the gemini + codex MCP servers.
+# paper-search-improved.py does not use it; it runs via uvx (see mcp.json.example).
+#
+# One-time build, after bootstrap.sh has copied this dir to ~/.local/share/mcp/:
+#   uv venv --python 3.13 ~/.local/share/mcp/.venv-mcp
+#   uv pip install --python ~/.local/share/mcp/.venv-mcp/bin/python -r ~/.local/share/mcp/requirements.txt
+#
+# mcp stays below 2: these servers use the 1.x FastMCP API, which mcp 2 renamed to MCPServer.
+mcp>=1.28,<2
+google-genai>=2.10,<3
+anyio>=4,<5

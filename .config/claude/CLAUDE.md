@@ -10,10 +10,15 @@
 - No multi-line descriptions unless explicitly asked
 - On commit or push, update the relevant Obsidian note to reflect what was done
 
+# PR Descriptions
+
+- Open with one plain paragraph on the intended behavior, covering the 5Ws (what changes, who it affects, where in the system, when it applies, why) — a reviewer should get the intent in ~60 seconds
+- Close with a prose paragraph on how the change was validated — only claims backed by evidence; say plainly what is red or unverified
+- Plain prose, ≤4 short paragraphs, ~150–200 words (intent ≤80, validation ≤60): no headers, bold labels, checklists, or file paths; tickets as links; no AI-attribution footer
+
 # AI CLI Tools
 
-- **Personal projects** (`~/code/personal/`): Use **AWS CLI** (e.g. `aws` commands)
-- **Work projects** (`~/code/paramount/`): Use **Gemini CLI** (e.g. `gemini` commands)
+For personal projects (`~/code/personal/`), use the **AWS CLI** (e.g. `aws` commands).
 
 # Trivial Transforms
 
@@ -41,8 +46,8 @@ Full recipe: `~/.claude/skills/layered-explanations/SKILL.md`
 
 # Agent Graph
 
-Custom agents form a small typed graph — canonical topology in `~/.claude/AGENT-GRAPH.md` (7 nodes: vault-navigator, shortform-infra, librarian, researcher, Code Reviewer, Accessibility Auditor, Reality Checker; old pack archived at `~/.claude/agents-archive-2026-07-03/`).
+Custom agents form a small typed graph — canonical topology in `~/.claude/AGENT-GRAPH.md` (5 nodes: librarian, researcher, Code Reviewer, Accessibility Auditor, Reality Checker).
 
 - When a subagent's report ends with `next: <agent> — <reason>`, treat it as a routing suggestion: follow it or say in one line why not.
-- Max one utility hop (→ vault-navigator) per task; never re-dispatch the agent that just reported.
+- Never re-dispatch the agent that just reported.
 - Pass the next agent only the context it needs, never the full transcript.

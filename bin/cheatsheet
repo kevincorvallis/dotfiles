@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Show Espanso trigger cheat sheet, optionally filtered
+# Usage: cheatsheet [filter]
+#   cheatsheet         — show all triggers
+#   cheatsheet git     — show only git triggers
+#   cheatsheet arrow   — grep for "arrow" in output
+
+ESPANSO_DIR="$HOME/Library/Application Support/espanso/match"
+YELLOW='\033[1;33m'
+DIM='\033[2m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+print_triggers() {
+    local file="$1"
+    local basename
+    basename=$(basename "$file" .yml)
+
+    printf "\n${YELLOW}━━━ %s ━━━${NC}\n" "$basename"
+
+    awk '
+    /^  - trigger:/ {
+        gsub(/^  - trigger: "/, ""); gsub(/"$/, "");
+        trigger = $0
+    }
+    /^    replace:/ {
+        gsub(/^    replace: "/, ""); gsub(/"$/, "");
+        gsub(/\$\|\$/, "…");
+        replace = $0
+        if (length(replace) > 60) replace = substr(replace, 1, 57) "..."
+        printf "  \033[0;36m%-14s\033[0m %s\n", trigger, replace
+    }
+    ' "$file"
+}
+
+if [[ ! -d "$ESPANSO_DIR" ]]; then
+    echo "Espanso match directory not found: $ESPANSO_DIR"
+    exit 1
+fi
+
+printf "${BOLD}Espanso Triggers${NC} ${DIM}(~/Library/Application Support/espanso/match/)${NC}\n"
+
+if [[ -n "${1:-}" ]]; then
+    # Check if arg matches a file name first
+    if [[ -f "$ESPANSO_DIR/$1.yml" ]]; then
+        print_triggers "$ESPANSO_DIR/$1.yml"
+    else
+        # Grep mode — filter all output
+        for file in "$ESPANSO_DIR"/*.yml; do
+            [[ -f "$file" ]] && print_triggers "$file"
+        done | grep -i --color=auto "$1"
+    fi
+else
+    for file in "$ESPANSO_DIR"/*.yml; do
+        [[ -f "$file" ]] && print_triggers "$file"
+    done
+fi
+
+echo

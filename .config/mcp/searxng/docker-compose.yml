@@ -1,0 +1,17 @@
+# SearXNG, the local search backend for the searxng MCP server in mcp.json.example.
+# bootstrap.sh deploys this directory to ~/.local/share/mcp/searxng/. One-time setup:
+#   echo "SEARXNG_SECRET=$(openssl rand -hex 32)" > ~/.local/share/mcp/searxng/.env
+#   docker compose -f ~/.local/share/mcp/searxng/docker-compose.yml up -d
+# The secret lives only in that untracked .env (SearXNG reads it as server.secret_key).
+# restart: unless-stopped brings it back whenever Docker starts, so no LaunchAgent is needed.
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?missing - create .env next to this file, see the comment at the top}
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml:ro
+    restart: unless-stopped

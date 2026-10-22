@@ -1,0 +1,23 @@
+## Atuin shell history — deployed to ~/.config/atuin/config.toml by bootstrap.sh.
+## Only non-default settings live here; full reference: https://docs.atuin.sh/configuration/config/
+## Sync is not configured, so history stays on this machine.
+
+## Enter runs the selected command; Tab puts it on the prompt for editing.
+enter_accept = true
+
+## Don't record commands that look like they carry a credential. The regexes are
+## case-insensitive and unanchored, so they over-match on purpose (for example
+## `git commit -m "fix token refresh"` is not recorded either).
+history_filter = [
+  "(?i)token",
+  "(?i)secret",
+  "(?i)passw(or)?d",
+  "(?i)api[_ -]?key",
+]
+
+## Built-in patterns for known key formats (AWS, GitHub, Slack, Stripe). On by default.
+secrets_filter = true
+
+[sync]
+## Sync v2 record store (default for new installs).
+records = true

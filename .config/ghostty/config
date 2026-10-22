@@ -14,7 +14,7 @@ window-padding-y = 10
 background-opacity = 0.95
 background-blur = 12
 window-vsync = true
-window-decoration = false
+window-decoration = true
 
 # --- Clipboard ---
 copy-on-select = clipboard
@@ -27,7 +27,7 @@ mouse-scroll-multiplier = 1.0
 shell-integration = detect
 
 # --- macOS niceties ---
-macos-titlebar-style = hidden
+macos-titlebar-style = transparent
 macos-option-as-alt = true
 window-save-state = never
 
@@ -36,5 +36,8 @@ confirm-close-surface = true
 
 # --- Keybinds ---
 keybind = cmd+shift+c=copy_to_clipboard
-keybind = cmd+shift+v=paste_from_clipboard
+# cmd+shift+v sends Ctrl+V (\x16) for the paste-oneline zsh widget (.zshrc),
+# which joins wrapped lines into one. cmd+v is a literal paste (keeps newlines).
+keybind = cmd+shift+v=text:\x16
+keybind = cmd+v=paste_from_clipboard
 keybind = cmd+shift+k=clear_screen

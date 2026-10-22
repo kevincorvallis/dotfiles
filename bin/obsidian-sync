@@ -1,0 +1,51 @@
+#!/bin/zsh
+# obsidian-sync — commit the Obsidian vault's git repo, rebase onto the remote, push.
+# launchd: com.kevincorvallis.obsidian-sync (daily 18:00; installed by `bootstrap.sh --launchagents`).
+# Log: ~/Library/Logs/obsidian-sync.log. Override the repo path with OBSIDIAN_VAULT=<path>.
+#
+# Run it on exactly one machine: iCloud syncs .git too, so two machines committing will race.
+# Local edits are committed first, so a failed pull or push never loses them. Every git failure
+# exits non-zero, logs a message and posts a macOS banner; a rebase conflict is aborted (local
+# commits are kept) and needs a manual `git pull --rebase` in the vault.
+
+setopt no_unset pipe_fail
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+REPO="${OBSIDIAN_VAULT:-$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents}"
+
+log() { print -r -- "$(date '+%F %T') obsidian-sync: $*"; }
+notify() { osascript -e "display notification \"$1\" with title \"obsidian-sync\"" > /dev/null 2>&1 || true; }
+fail() {
+    notify "FAILED: $* (see ~/Library/Logs/obsidian-sync.log)"
+    log "FAILED: $*"
+    log "If git said 'Resource deadlock avoided', iCloud has evicted files under .git:"
+    log "mark the vault folder Keep Downloaded in Finder, run 'git fsck' in it, then retry."
+    exit 1
+}
+
+cd "$REPO" 2> /dev/null || fail "vault not found: $REPO"
+git rev-parse --git-dir > /dev/null || fail "not a git repo: $REPO"
+
+st=$(git status --porcelain) || fail "git status"
+if [[ -n $st ]]; then
+    added=$(print -r -- "$st" | grep -c '^??')
+    modified=$(print -r -- "$st" | grep -vc '^??')
+    git add -A || fail "git add"
+    git commit -q -m "vault sync: ${added} added, ${modified} modified" || fail "git commit"
+    log "committed: ${added} added, ${modified} modified"
+fi
+
+git rev-parse -q --verify '@{u}' > /dev/null \
+    || fail "no upstream branch set; run 'git push -u origin <branch>' in the vault once (commits are saved locally)"
+if ! git pull -q --rebase; then
+    git rebase --abort 2> /dev/null
+    fail "git pull --rebase (commits are saved locally; on a conflict run 'git pull --rebase' in the vault and resolve it)"
+fi
+
+ahead=$(git rev-list --count '@{u}..HEAD') || fail "git rev-list @{u}..HEAD"
+if (( ahead == 0 )); then
+    log "vault clean — nothing to sync"
+    exit 0
+fi
+git push -q || fail "git push (commits are saved locally; the next run retries the push)"
+log "pushed ${ahead} commit(s)"

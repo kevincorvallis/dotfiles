@@ -19,29 +19,21 @@
       "Bash(gh:*)",
       "Bash(npm install:*)",
       "Bash(npm uninstall:*)",
-      "Bash(npm run:*)",
       "Bash(npm view:*)",
       "Bash(npm ls:*)",
       "Bash(npm --version:*)",
-      "Bash(npx:*)",
       "Bash(pnpm install)",
       "Bash(pnpm add:*)",
       "Bash(pnpm build:*)",
       "Bash(pnpm list:*)",
       "Bash(pnpm test:*)",
       "Bash(pnpm vitest:*)",
-      "Bash(pnpm run:*)",
       "Bash(pnpm type-check:*)",
       "Bash(pnpm --version:*)",
       "Bash(pnpm --filter:*)",
-      "Bash(node:*)",
-      "Bash(node --version:*)",
-      "Bash(python3:*)",
       "Bash(pip3 install:*)",
       "Bash(pip install:*)",
-      "Bash(curl:*)",
       "Bash(timeout:*)",
-      "Bash(time curl:*)",
       "Bash(time timeout:*)",
       "Bash(brew install:*)",
       "Bash(brew list:*)",
@@ -61,23 +53,15 @@
       "Bash(swiftc:*)",
       "Bash(plutil:*)",
       "Bash(sw_vers:*)",
-      "Bash(open:*)",
-      "Bash(osascript:*)",
       "Bash(openssl rand:*)",
-      "Bash(bash:*)",
-      "Bash(source:*)",
-      "Bash(chmod:*)",
       "Bash(mkdir:*)",
       "Bash(ls:*)",
       "Bash(du:*)",
       "Bash(tree:*)",
       "Bash(lsof:*)",
-      "Bash(pkill:*)",
       "Bash(jq:*)",
       "Bash(zip:*)",
       "Bash(gunzip:*)",
-      "Bash(wget:*)",
-      "Bash(ruby:*)",
       "Bash(gem install:*)",
       "Bash(psql:*)",
       "Bash(pbcopy)",
@@ -92,16 +76,25 @@
       "WebFetch(domain:en.wikipedia.org)",
       "WebFetch(domain:en.m.wikipedia.org)"
     ],
-    "defaultMode": "auto"
+    "defaultMode": "auto",
+    "ask": [
+      "Bash(git push*--force*)",
+      "Bash(git push* -f*)",
+      "Bash(git reset*--hard*)",
+      "Bash(git clean*-f*)",
+      "Bash(git branch*-D*)",
+      "Bash(rm -rf*)",
+      "Bash(rm -fr*)",
+      "Bash(rm -r *)"
+    ]
   },
-  "model": "opus[1m]",
+  "model": "claude-fable-5-1[1m]",
   "enabledPlugins": {
     "github@claude-plugins-official": true,
     "vercel@claude-plugins-official": true,
     "agent-sdk-dev@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true,
     "ralph-loop@claude-plugins-official": true,
-    "sonatype-guide@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
@@ -114,12 +107,6 @@
     "codex@openai-codex": true
   },
   "extraKnownMarketplaces": {
-    "qdrant": {
-      "source": {
-        "source": "github",
-        "repo": "qdrant/skills"
-      }
-    },
     "karpathy-skills": {
       "source": {
         "source": "github",
@@ -133,13 +120,40 @@
       }
     }
   },
-  "effortLevel": "low",
+  "effortLevel": "xhigh",
   "advisorModel": "fable",
-  "autoUpdatesChannel": "stable",
+  "autoUpdatesChannel": "latest",
   "autoDreamEnabled": true,
   "skipWorkflowUsageWarning": true,
   "theme": "auto",
   "verbose": true,
   "autoCompactEnabled": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/pre-bash-guard.sh\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/block-secret-stage.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "xhigh"
+    }
+  },
+  "sandbox": {
+    "enabled": true
+  }
 }

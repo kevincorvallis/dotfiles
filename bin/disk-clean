@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+# disk-clean — reclaim dev caches and build artifacts; everything it removes regenerates.
+#
+# Usage: disk-clean [check|clean] [--deep] [--worktrees] [--volumes]
+#   check        Report free space, the big buckets, and what `clean` would remove. Changes nothing.
+#   clean        (default) Daily-safe set: Homebrew/npm/pip/uv caches, Xcode DerivedData, browser
+#                test caches, Docker images + build cache created > DOCKER_AGE ago and not
+#                referenced by any container, unavailable simulators, stale git-worktree registrations.
+#   --deep       Also remove ALL unused Docker images regardless of age.
+#   --worktrees  Also remove git worktrees (of the repos in WT_PARENTS) that are clean, fully pushed,
+#                and idle > WT_IDLE_DAYS. Local branches are kept; only the checkout goes.
+#   --volumes    Also prune unused Docker volumes. OFF by default: volumes can hold local dev databases.
+#
+# Scheduled daily 07:00 by ~/Library/LaunchAgents/com.kevincorvallis.disk-clean.plist (runs `clean`;
+# installed by `bootstrap.sh --launchagents`). Log: ~/Library/Logs/disk-clean.log.
+# Posts a macOS banner when free space < MIN_FREE_GB.
+# Knobs (env): MIN_FREE_GB=40  DOCKER_AGE=72h  WT_IDLE_DAYS=14
+#   WT_PARENTS="<dir> ..."  each entry is a git repo, or a directory whose child repos are checked
+#                           (default: ~/code/personal)
+#
+# Why this exists: agent runs mint date-tagged Docker images (5-8 GB each, never pruned) and agent
+# worktrees each carry their own multi-GB .venv / node_modules. Nothing else grows on its own.
+
+set -uo pipefail
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+MIN_FREE_GB="${MIN_FREE_GB:-40}"
+DOCKER_AGE="${DOCKER_AGE:-72h}"
+WT_IDLE_DAYS="${WT_IDLE_DAYS:-14}"
+WT_PARENTS="${WT_PARENTS:-$HOME/code/personal}"
+DOCKER_RAW="$HOME/Library/Containers/com.docker.docker/Data/vms/0/data/Docker.raw"
+
+MODE=clean DEEP=0 WORKTREES=0 VOLUMES=0
+for arg in "$@"; do
+	case "$arg" in
+		check | clean) MODE=$arg ;;
+		--deep) DEEP=1 ;;
+		--worktrees) WORKTREES=1 ;;
+		--volumes) VOLUMES=1 ;;
+		-h | --help) sed -n '2,19p' "$0"; exit 0 ;;
+		*) echo "unknown arg: $arg" >&2; exit 64 ;;
+	esac
+done
+
+# ---------- helpers ----------
+section() { printf '\n== %s ==\n' "$1"; }
+free_kb() { df -k /System/Volumes/Data | awk 'NR==2 {print $4}'; }
+kb_to_gb() { awk -v k="$1" 'BEGIN{printf "%.1f", k/1048576}'; }
+hsize() { [[ -e "$1" ]] && du -sh "$1" 2> /dev/null | cut -f1 || echo "-"; }
+docker_up() { docker info > /dev/null 2>&1; }
+notify() { osascript -e "display notification \"$1\" with title \"disk-clean\"" > /dev/null 2>&1 || true; }
+have() { command -v "$1" > /dev/null 2>&1; }
+
+# Git repos to check for worktrees: each WT_PARENTS entry that is a repo, plus the direct child
+# repos of each entry that is a plain directory. Prints one path per line.
+wt_repos() {
+	local p r
+	for p in $WT_PARENTS; do
+		if [[ -d "$p/.git" ]]; then
+			echo "$p"
+		elif [[ -d "$p" ]]; then
+			for r in "$p"/*/; do
+				r=${r%/}
+				[[ -d "$r/.git" ]] && echo "$r"
+			done
+		fi
+	done
+	return 0
+}
+
+# Worktrees that are safe to remove: linked (not the parent), not under /tmp, exist, no dirty or
+# untracked files, no commits missing from every remote, and neither created nor committed to in
+# the last WT_IDLE_DAYS. Prints one path per line.
+wt_candidates() {
+	local parent=$1 wt last created newest
+	local cutoff=$(($(date +%s) - WT_IDLE_DAYS * 86400))
+	git -C "$parent" worktree list --porcelain 2> /dev/null | awk '/^worktree /{print $2}' | while read -r wt; do
+		[[ "$wt" == "$parent" ]] && continue
+		[[ "$wt" == /private/tmp/* || "$wt" == /tmp/* ]] && continue
+		[[ -d "$wt" && -f "$wt/.git" ]] || continue
+		[[ -n "$(git -C "$wt" status --porcelain 2> /dev/null)" ]] && continue
+		[[ -n "$(git -C "$wt" log --oneline --not --remotes 2> /dev/null)" ]] && continue
+		last=$(git -C "$wt" log -1 --format=%ct 2> /dev/null || echo 0)
+		created=$(stat -f %m "$wt/.git" 2> /dev/null || echo 0)
+		newest=$((created > last ? created : last))
+		((newest < cutoff)) || continue
+		echo "$wt"
+	done
+}
+
+wt_report() {
+	local parent=$1 total dirty cands
+	[[ -d "$parent/.git" ]] || return 0
+	total=$(git -C "$parent" worktree list --porcelain | grep -c '^worktree ')
+	dirty=0
+	for wt in $(git -C "$parent" worktree list --porcelain | awk '/^worktree /{print $2}'); do
+		[[ "$wt" == "$parent" || ! -d "$wt" ]] && continue
+		[[ -n "$(git -C "$wt" status --porcelain 2> /dev/null)" ]] && dirty=$((dirty + 1))
+	done
+	cands=$(wt_candidates "$parent")
+	printf '%s: %d worktrees, %d dirty, %d removable (clean + pushed + idle >%sd)\n' \
+		"$(basename "$parent")" "$((total - 1))" "$dirty" "$(printf '%s\n' "$cands" | grep -c .)" "$WT_IDLE_DAYS"
+	[[ -n "$cands" ]] && printf '%s\n' "$cands" | sed 's/^/    /'
+}
+
+# ---------- check ----------
+if [[ $MODE == check ]]; then
+	echo "=== disk-clean check $(date '+%F %T') ==="
+	free_gb=$(kb_to_gb "$(free_kb)")
+	printf 'free: %s GB (alert below %s GB)\n' "$free_gb" "$MIN_FREE_GB"
+
+	section "Docker"
+	printf 'Docker.raw on disk: %s\n' "$(hsize "$DOCKER_RAW")"
+	if docker_up; then
+		docker system df
+		printf '\nimages (clean removes those created > %s ago that no container references — a daily `docker run --rm` image still gets re-pulled):\n' "$DOCKER_AGE"
+		docker images --format '  {{.Size}}\t{{.CreatedSince}}\t{{.Repository}}:{{.Tag}}' | sort -rh | head -12
+	else
+		echo "docker not running — skipped"
+	fi
+
+	section "Caches (clean removes these)"
+	for p in "$HOME/.cache/uv" "$HOME/Library/Developer/Xcode/DerivedData" \
+		"$HOME/Library/Caches/ms-playwright" "$HOME/Library/Caches/pip" "$HOME/.npm" "$HOME/.cache/puppeteer"; do
+		printf '%8s  %s\n' "$(hsize "$p")" "${p/#$HOME/~}"
+	done
+
+	section "Simulators (clean removes unavailable devices only)"
+	printf 'devices: %s   ' "$(hsize "$HOME/Library/Developer/CoreSimulator/Devices")"
+	xcrun simctl runtime list 2> /dev/null | tail -1 || echo
+
+	section "Worktrees (--worktrees removes the listed ones)"
+	wt_repos | while read -r parent; do wt_report "$parent"; done
+
+	echo
+	if awk -v f="$free_gb" -v m="$MIN_FREE_GB" 'BEGIN{exit !(f<m)}'; then
+		echo "LOW: ${free_gb} GB free < ${MIN_FREE_GB} GB — run: disk-clean [--deep] [--worktrees]"
+		notify "${free_gb} GB free. Run disk-clean."
+		exit 2
+	fi
+	echo "OK"
+	exit 0
+fi
+
+# ---------- clean ----------
+echo "=== disk-clean clean$([[ $DEEP == 1 ]] && echo ' --deep')$([[ $WORKTREES == 1 ]] && echo ' --worktrees')$([[ $VOLUMES == 1 ]] && echo ' --volumes') start $(date '+%F %T') ==="
+before=$(free_kb)
+
+section "Homebrew"
+if have brew; then brew cleanup --prune=all 2>&1 | tail -1; else echo "not installed — skipped"; fi
+
+section "npm"
+if have npm; then npm cache clean --force 2> /dev/null; fi
+rm -rf ~/.npm/_npx
+
+section "uv"
+# MCP servers (paper-search, gemini, codex) run under uvx and hold the cache lock during any
+# Claude/Cursor session — a short timeout means "skip", not "break the running tools".
+if have uv; then UV_LOCK_TIMEOUT=10 uv cache prune 2>&1 | tail -1; else echo "not installed — skipped"; fi
+
+section "pip"
+if have python3; then python3 -m pip cache purge 2> /dev/null; fi
+rm -rf ~/Library/Caches/pip
+
+section "Xcode build artifacts"
+rm -rf ~/Library/Developer/Xcode/DerivedData ~/Library/Developer/Xcode/DerivedData.noindex ~/Library/Developer/Xcode/"iOS DeviceSupport"
+
+section "Browser test caches"
+rm -rf ~/Library/Caches/ms-playwright ~/Library/Caches/ms-playwright-mcp ~/.cache/puppeteer
+
+section "Simulators"
+if xcrun --find simctl > /dev/null 2>&1; then
+	xcrun simctl delete unavailable 2>&1 | tail -1
+else
+	echo "simctl not available (no Xcode) — skipped"
+fi
+
+if docker_up; then
+	section "Docker images created > $DOCKER_AGE ago, not referenced by a container"
+	docker image prune -a -f --filter "until=$DOCKER_AGE" 2>&1 | tail -1
+	section "Docker build cache older than $DOCKER_AGE"
+	docker builder prune -a -f --filter "until=$DOCKER_AGE" 2>&1 | tail -1
+	if [[ $DEEP == 1 ]]; then
+		section "Docker: ALL unused images (--deep)"
+		docker image prune -af 2>&1 | tail -1
+	fi
+	if [[ $VOLUMES == 1 ]]; then
+		section "Docker: unused volumes (--volumes)"
+		docker volume prune -af 2>&1 | tail -1
+	fi
+else
+	section "Docker"
+	echo "not running — skipped (not starting it)"
+fi
+
+section "Stale worktree registrations"
+wt_repos | while read -r parent; do
+	git -C "$parent" worktree prune -v 2>&1 | sed "s|^|$(basename "$parent"): |"
+done
+
+if [[ $WORKTREES == 1 ]]; then
+	section "Idle worktrees (--worktrees)"
+	wt_repos | while read -r parent; do
+		wt_candidates "$parent" | while read -r wt; do
+			# no --force: git refuses if anything became dirty between the check and now
+			git -C "$parent" worktree remove "$wt" 2>&1 && echo "removed $wt"
+		done
+		git -C "$parent" worktree prune
+	done
+fi
+
+after=$(free_kb)
+free_gb=$(kb_to_gb "$after")
+printf '\nFreed %s GB — now %s GB free\n' "$(kb_to_gb "$((after - before))")" "$free_gb"
+if awk -v f="$free_gb" -v m="$MIN_FREE_GB" 'BEGIN{exit !(f<m)}'; then
+	echo "LOW: still under ${MIN_FREE_GB} GB — consider: disk-clean --deep --worktrees"
+	notify "${free_gb} GB free after clean. Consider --deep --worktrees."
+fi
+echo "=== disk-clean end $(date '+%F %T') ==="
