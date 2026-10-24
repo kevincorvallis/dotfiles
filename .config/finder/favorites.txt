@@ -1,0 +1,7 @@
+# Personal Finder Favorites, in sidebar order. One folder per line.
+# ~ expands to the current account's home directory.
+~/Downloads
+~/Library/Mobile Documents/com~apple~CloudDocs/CS224
+~/code
+/Applications
+~/Desktop

@@ -13,7 +13,7 @@ usage() {
 		'Runs every production-readiness check and prints PASS / FAIL / WARN / SKIP.' \
 		'Exits 1 if anything FAILs.' \
 		'' \
-		'  1. shell syntax      bash -n (/bin/bash 3.2), bash-4 syntax scan, zsh -n, python, shellcheck' \
+		'  1. script syntax     bash -n (/bin/bash 3.2), bash-4 scan, zsh -n, python, swift, shellcheck' \
 		'  2. data files        json, toml, yaml, plist, ghostty config, .gitconfig' \
 		'  3. bootstrap         fresh-HOME deploy, idempotency, dry-run, drift/backup, zsh -i' \
 		'  4. public-repo guard work identifiers, secret shapes, hard-coded /Users paths' \
@@ -95,6 +95,7 @@ section "1. Shell syntax"
 : > "$T/bash.lst"
 : > "$T/zsh.lst"
 : > "$T/py.lst"
+: > "$T/swift.lst"
 for f in .zshrc .exports .aliases .functions .extra.example; do
 	if [ -f "$f" ]; then echo "$f" >> "$T/zsh.lst"; fi
 done
@@ -105,6 +106,7 @@ while IFS= read -r f; do
 		'#!'*zsh*) kind=zsh ;;
 		'#!'*bash* | '#!/bin/sh'* | '#!/usr/bin/env sh'*) kind=bash ;;
 		'#!'*python*) kind=python ;;
+		'#!'*swift*) kind=swift ;;
 		*)
 			case "$f" in
 				*.sh) kind=bash ;;
@@ -118,9 +120,10 @@ while IFS= read -r f; do
 		bash) echo "$f" >> "$T/bash.lst" ;;
 		zsh) echo "$f" >> "$T/zsh.lst" ;;
 		python) echo "$f" >> "$T/py.lst" ;;
+		swift) echo "$f" >> "$T/swift.lst" ;;
 		*)
 			case "$f" in
-				bin/* | scripts/*) warn "$f: no recognised shebang (bash/sh/zsh/python)" ;;
+				bin/* | scripts/*) warn "$f: no recognised shebang (bash/sh/zsh/python/swift)" ;;
 			esac
 			;;
 	esac
@@ -201,6 +204,24 @@ except SyntaxError as e:
 		if [ "$bad" = 0 ]; then pass "python syntax ($n files)"; fi
 	else
 		skip "python syntax: python3 not installed"
+	fi
+fi
+
+if [ -s "$T/swift.lst" ]; then
+	if have swiftc; then
+		n=0 bad=0
+		while IFS= read -r f; do
+			n=$((n + 1))
+			cp "$f" "$T/check.swift"
+			if ! swiftc -typecheck -module-cache-path "${SWIFT_MODULECACHE_PATH:-$T/swift-modules}" "$T/check.swift" 2> "$T/err"; then
+				bad=$((bad + 1))
+				fail "swift typecheck $f"
+				indent "$T/err"
+			fi
+		done < "$T/swift.lst"
+		if [ "$bad" = 0 ]; then pass "swift typecheck ($n files)"; fi
+	else
+		skip "swift syntax: install Apple's Command Line Tools"
 	fi
 fi
 
@@ -393,7 +414,7 @@ deploy_map() {
 			*.example | *.pyc | */__pycache__/* | */.DS_Store) continue ;;
 			.zshrc | .exports | .aliases | .functions | .gitconfig | .gitignore | .vimrc | .tmux.conf | .curlrc | .hushlogin | .inputrc) d=$f ;;
 			.vim/* | bin/*) d=$f ;;
-			.config/aerospace/aerospace.toml | .config/starship/starship.toml | .config/atuin/config.toml | .config/karabiner/karabiner.json) d=$f ;;
+			.config/aerospace/aerospace.toml | .config/starship/starship.toml | .config/atuin/config.toml | .config/karabiner/karabiner.json | .config/finder/favorites.txt) d=$f ;;
 			.config/espanso/config/*/* | .config/espanso/match/*/*) continue ;;
 			.config/espanso/config/*.yml | .config/espanso/match/*.yml) d="Library/Application Support/espanso/${f#.config/espanso/}" ;;
 			.config/sublime/User/*) d="Library/Application Support/Sublime Text/Packages/User/${f#.config/sublime/User/}" ;;
@@ -418,6 +439,8 @@ REQUIRED='.zshrc
 .hushlogin
 .inputrc
 bin/disk-clean
+bin/finder-favorites
+.config/finder/favorites.txt
 .config/starship/starship.toml
 .config/aerospace/aerospace.toml
 .config/atuin/config.toml

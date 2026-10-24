@@ -172,6 +172,7 @@ section "App configs (~/.config)"
 deploy .config/aerospace/aerospace.toml "$HOME/.config/aerospace/aerospace.toml"
 deploy .config/starship/starship.toml "$HOME/.config/starship/starship.toml"
 deploy .config/atuin/config.toml "$HOME/.config/atuin/config.toml"
+deploy .config/finder/favorites.txt "$HOME/.config/finder/favorites.txt"
 
 # Karabiner rewrites karabiner.json from its own UI, so only seed it on a fresh machine.
 k_src=.config/karabiner/karabiner.json

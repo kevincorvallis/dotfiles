@@ -21,3 +21,7 @@ Thumbs.db
 # Machine-local dotfile overlays (never commit)
 .extra
 .gitconfig.local
+
+# Full Finder exports can contain private folder names and cloud accounts
+.config/finder/favorites.local.txt
+.config/finder/emblem.local.json

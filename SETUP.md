@@ -229,7 +229,9 @@ These apps keep their settings in their own stores, which hold accounts or licen
 - **Ice, Stats, SoundSource preferences:** on the old Mac, with each app quit, run `defaults export <domain> <file>.plist` for `com.jordanbaird.Ice`, `eu.exelban.Stats` and `com.rogueamoeba.soundsource`. Move the files on the transfer drive, then run `defaults import <domain> <file>.plist` here before opening the app. This is best-effort; reconfiguring by hand is the fallback.
 - **Finicky:** reads `~/.finicky.js`. Write a personal one here; the old Mac's routes work and school accounts, which is why it isn't in the repo.
 - **Claude Quick Actions:** copy the `.workflow` files in `~/Library/Services` across.
-- **Dock, Finder sidebar and folders [agent]:** follow the private checklist "Mac Studio GUI Setup" in the Obsidian vault (Notes/Projects), which arrives through iCloud. The Dock part is a `dockutil` script; sidebar favorites are added in Finder with ctrl+cmd+T.
+- **Finder sidebar [agent]:** the personal Favorites list is deployed by bootstrap. Preview with `finder-favorites import ~/.config/finder/favorites.txt --dry-run`, then run the same command without `--dry-run`. It skips existing Favorites and missing folders, and appends new entries in file order. Existing sidebar order and built-in items stay unchanged. For a complete private export from the old Mac, see [README: Finder Favorites](README.md#finder-favorites). If the macOS API is unavailable, select each folder in Finder and press ctrl+cmd+T, then drag into order.
+- **Finder sidebar icons [agent + you]:** restore Emblem's folder-to-symbol assignments separately using [README: Custom sidebar icons](README.md#custom-sidebar-icons-emblem) and the private "Mac Studio GUI Setup" note. The Favorites path list does not carry icons. Regenerate the icon apps, enable their Finder extensions, and verify each icon visually.
+- **Dock and folders [agent]:** follow the private checklist "Mac Studio GUI Setup" in the Obsidian vault (Notes/Projects), which arrives through iCloud. Its older Finder export instructions are superseded by the step above.
 
 ## 14. Your repos, builds and files [agent]
 

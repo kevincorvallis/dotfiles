@@ -1,0 +1,174 @@
+#!/usr/bin/swift -suppress-warnings
+// Finder Favorites use Apple's deprecated SharedFileList API; no archive writes.
+import Foundation
+import CoreServices
+import Darwin
+
+struct Failure: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
+}
+
+func report(_ message: String) {
+    FileHandle.standardError.write(Data((message + "\n").utf8))
+}
+
+let home = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path
+
+func pathURL(_ path: String) throws -> URL {
+    guard !path.contains("\0") else { throw Failure(message: "Paths cannot contain NUL characters.") }
+    if path == "~" { return URL(fileURLWithPath: home) }
+    if path.hasPrefix("~/") { return URL(fileURLWithPath: home + String(path.dropFirst())).standardizedFileURL }
+    guard path.hasPrefix("/") else {
+        throw Failure(message: "Expected an absolute or ~/ path: \(path)")
+    }
+    return URL(fileURLWithPath: path).standardizedFileURL
+}
+
+func portable(_ url: URL) -> String {
+    let path = url.standardizedFileURL.path
+    if path == home { return "~" }
+    return path.hasPrefix(home + "/") ? "~" + String(path.dropFirst(home.count)) : path
+}
+
+func key(_ url: URL) -> String {
+    url.standardizedFileURL.resolvingSymlinksInPath().path
+}
+
+func snapshot(_ list: LSSharedFileList) throws -> [LSSharedFileListItem] {
+    guard let result = LSSharedFileListCopySnapshot(list, nil)?.takeRetainedValue(),
+          let items = result as NSArray as? [LSSharedFileListItem] else {
+        throw Failure(message: "Cannot read Finder Favorites. Run this from a normal macOS terminal.")
+    }
+    return items
+}
+
+func resolve(_ item: LSSharedFileListItem) throws -> URL {
+    var error: Unmanaged<CFError>?
+    let flags = UInt32(kLSSharedFileListNoUserInteraction | kLSSharedFileListDoNotMountVolumes)
+    guard let result = LSSharedFileListItemCopyResolvedURL(item, flags, &error)?.takeRetainedValue() else {
+        let name = LSSharedFileListItemCopyDisplayName(item).takeRetainedValue() as String
+        let detail = error.map { String(describing: $0.takeRetainedValue()) } ?? "unavailable location"
+        throw Failure(message: "Cannot resolve Favorite ‘\(name)’: \(detail). No changes were made.")
+    }
+    return result as URL
+}
+
+func readManifest(_ url: URL) throws -> [URL] {
+    let text = try String(contentsOf: url, encoding: .utf8)
+    var urls: [URL] = []
+    var seen = Set<String>()
+    for (index, line) in text.components(separatedBy: .newlines).enumerated() {
+        if line.isEmpty || line.hasPrefix("#") { continue }
+        let url: URL
+        do { url = try pathURL(line) }
+        catch { throw Failure(message: "Line \(index + 1): \(error.localizedDescription)") }
+        if seen.insert(key(url)).inserted { urls.append(url) }
+    }
+    return urls
+}
+
+func saveManifest(_ paths: [String], to url: URL) throws {
+    var template = Array(url.deletingLastPathComponent().appendingPathComponent(".finder-favorites.XXXXXX").path.utf8CString)
+    let descriptor = mkstemp(&template) // Creates the temporary file with mode 0600.
+    guard descriptor >= 0 else { throw Failure(message: "Cannot create export: \(String(cString: strerror(errno)))") }
+    let temporary = String(cString: template)
+    defer { unlink(temporary) }
+    let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+    try handle.write(contentsOf: Data((paths.joined(separator: "\n") + "\n").utf8))
+    try handle.synchronize()
+    try handle.close()
+    guard rename(temporary, url.path) == 0 else {
+        throw Failure(message: "Cannot replace export: \(String(cString: strerror(errno)))")
+    }
+}
+
+func run() throws {
+    let args = Array(CommandLine.arguments.dropFirst())
+    if args == ["--help"] || args == ["-h"] {
+        print("""
+        Usage: finder-favorites export FILE
+               finder-favorites import FILE [--dry-run]
+
+        Export folder paths in Finder order, using ~ for your home directory.
+        Import adds existing folders in file order; existing Favorites and missing
+        folders are skipped. Existing Favorites are never removed or reordered.
+        FILE may be absolute, relative, or ~/; its entries must be absolute or ~/ paths.
+        Blank lines and # comments are ignored.
+        Requires macOS and Command Line Tools. Run from a normal terminal, without sudo.
+        """)
+        return
+    }
+    guard args.count >= 2, args.count <= 3,
+          args[0] == "export" || args[0] == "import",
+          args.count == 2 || (args[0] == "import" && args[2] == "--dry-run") else {
+        throw Failure(message: "Usage: finder-favorites export FILE | import FILE [--dry-run]")
+    }
+    guard !args[1].isEmpty, !args[1].contains("\0") else { throw Failure(message: "Invalid manifest filename.") }
+    let file = args[1].hasPrefix("~") ? try pathURL(args[1]) : URL(fileURLWithPath: args[1]).standardizedFileURL
+    // Validate every input line before accessing or changing Favorites.
+    let requested = args[0] == "import" ? try readManifest(file) : []
+    guard let list = LSSharedFileListCreate(nil, kLSSharedFileListFavoriteItems.takeUnretainedValue(), nil)?.takeRetainedValue() else {
+        throw Failure(message: "Cannot open Finder Favorites. Run this from a normal macOS terminal.")
+    }
+    let items = try snapshot(list)
+    guard !items.isEmpty else {
+        throw Failure(message: "Finder Favorites is empty or inaccessible; no changes were made. If Finder shows Favorites, run this from a normal macOS terminal. Otherwise, add one Favorite in Finder before retrying.")
+    }
+    var existing = Set<String>()
+    var paths: [String] = []
+    var nonFile = 0
+    for item in items {
+        let url = try resolve(item)
+        guard url.isFileURL else { nonFile += 1; continue }
+        existing.insert(key(url))
+        let path = portable(url)
+        guard path.rangeOfCharacter(from: .newlines) == nil else {
+            throw Failure(message: "A Favorite contains a line break and cannot be saved in a path list.")
+        }
+        paths.append(path)
+    }
+    if args[0] == "export" {
+        guard !paths.isEmpty else {
+            throw Failure(message: "Finder Favorites is empty or inaccessible; no export was saved. If Finder shows Favorites, run this from a normal macOS terminal.")
+        }
+        try saveManifest(paths, to: file)
+        report("Exported \(paths.count) Favorites to \(portable(file)); skipped \(nonFile) non-file entries.")
+        return
+    }
+    let dryRun = args.count == 3
+    var additions: [URL] = []
+    var skipped = 0
+    // Build the complete plan before the first insertion.
+    for url in requested {
+        if existing.contains(key(url)) {
+            report("Already present: \(portable(url))")
+            skipped += 1
+            continue
+        }
+        var directory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &directory), directory.boolValue else {
+            report("Skipped missing folder or non-folder: \(portable(url))")
+            skipped += 1
+            continue
+        }
+        additions.append(url)
+    }
+    for url in additions {
+        if dryRun {
+            print("Would add: \(portable(url))")
+        } else {
+            guard LSSharedFileListInsertItemURL(list, kLSSharedFileListItemLast.takeUnretainedValue(), nil, nil, url as CFURL, nil, nil) != nil else {
+                throw Failure(message: "Could not add \(portable(url)). Earlier additions may have succeeded; rerunning safely skips them.")
+            }
+            print("Added: \(portable(url))")
+        }
+    }
+    report("\(dryRun ? "Would add" : "Added") \(additions.count) Favorites; skipped \(skipped).")
+}
+
+do { try run() }
+catch {
+    report("finder-favorites: \(error.localizedDescription)")
+    exit(1)
+}
