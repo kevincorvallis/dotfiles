@@ -245,6 +245,19 @@ else
 	skip "shellcheck: not installed (brew install shellcheck; CI runs it)"
 fi
 
+# The reviewer suite uses a fake Cursor CLI; it must never require network or login.
+py="${PY:-python3}"
+if [ ! -f tests/test_cross_review.py ]; then
+	fail "cross-review: offline behavioral test suite missing"
+elif ! have "$py"; then
+	skip "cross-review tests: python3 not installed"
+elif "$py" -B -I -m unittest discover -s tests -p 'test_cross_review.py' > "$T/err" 2>&1; then
+	pass "cross-review offline behavioral tests"
+else
+	fail "cross-review offline behavioral tests"
+	indent "$T/err"
+fi
+
 # =====================================================================
 section "2. Data files"
 # =====================================================================
@@ -420,6 +433,7 @@ deploy_map() {
 			.config/sublime/User/*) d="Library/Application Support/Sublime Text/Packages/User/${f#.config/sublime/User/}" ;;
 			.config/claude/settings.json | .config/claude/CLAUDE.md | .config/claude/AGENT-GRAPH.md) d=".claude/${f#.config/claude/}" ;;
 			.config/claude/agents/* | .config/claude/commands/* | .config/claude/rules/* | .config/claude/skills/* | .config/claude/hooks/* | .config/claude/scripts/* | .config/claude/output-styles/*) d=".claude/${f#.config/claude/}" ;;
+			.config/codex/skills/*) d=".codex/skills/${f#.config/codex/skills/}" ;;
 			.config/mcp/*) d=".local/share/mcp/${f#.config/mcp/}" ;;
 			*) continue ;;
 		esac
@@ -440,6 +454,7 @@ REQUIRED='.zshrc
 .inputrc
 bin/disk-clean
 bin/finder-favorites
+bin/cross-review
 .config/finder/favorites.txt
 .config/starship/starship.toml
 .config/aerospace/aerospace.toml
@@ -448,6 +463,7 @@ bin/finder-favorites
 .claude/settings.json
 .claude/CLAUDE.md
 .claude/hooks/pre-bash-guard.sh
+.codex/skills/cross-model-review/SKILL.md
 Library/Application Support/com.mitchellh.ghostty/config
 Library/Application Support/espanso/match'
 
@@ -585,6 +601,10 @@ bootstrap_checks() {
 	if [ -e "$H1/.dotfiles-backup" ]; then
 		fail "first run on an empty HOME created ~/.dotfiles-backup (nothing should need backing up)"
 	fi
+	# Codex owns other skills and settings; bootstrap must leave them in place.
+	mkdir -p "$H1/.codex/skills/local-only"
+	printf '%s\n' 'local-only skill fixture' > "$H1/.codex/skills/local-only/SKILL.md"
+	printf '%s\n' '# local-only settings fixture' > "$H1/.codex/config.toml"
 	snapshot "$H1" "$T/snap1"
 	sleep 1 # make any rewrite visible as an mtime change
 	if ! run_bootstrap "$H1" "$T/run2.log" -f; then
@@ -600,6 +620,7 @@ bootstrap_checks() {
 			indent "$T/err"
 		else
 			pass "second run is a no-op (no file, mode, mtime or backup changes)"
+			pass "existing local Codex skills and settings preserved"
 		fi
 	fi
 

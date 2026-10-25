@@ -21,6 +21,7 @@ An explicit allowlist. Identical files are left alone. A file that differs is mo
 - `.config/espanso/{config,match}/*.yml` go to `~/Library/Application Support/espanso/`.
 - `.config/sublime/User/*` goes to Sublime Text's `Packages/User/`.
 - `.config/claude/` goes to `~/.claude/`: settings.json, CLAUDE.md, AGENT-GRAPH.md, and the agents, commands, rules, skills, output-styles, scripts and hooks dirs (`hooks/*.sh` made executable).
+- `.config/codex/skills/` goes to `~/.codex/skills/`; other Codex files and local skills are preserved. Cross-model review also needs Cursor CLI installed and signed in on each Mac (SETUP.md step 8).
 - `.config/mcp/*` goes to `~/.local/share/mcp/`.
 - `launchagents/*.plist` go to `~/Library/LaunchAgents/` only with `--launchagents`. `__HOME__` becomes `$HOME`, and launchctl reloads any agent that changed or isn't loaded.
 - Never deployed: this file, README.md, SETUP.md, LICENSE-MIT.txt, Brewfile, .macos, scripts/, .github/, `*.example` and .claude/.

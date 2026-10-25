@@ -215,6 +215,9 @@ for d in agents commands rules skills scripts output-styles; do
 done
 install_tree .config/claude/hooks "$HOME/.claude/hooks" '*.sh'
 
+section "Codex skills (~/.codex/skills)"
+install_tree .config/codex/skills "$HOME/.codex/skills"
+
 section "MCP server scripts (~/.local/share/mcp)"
 install_tree .config/mcp "$HOME/.local/share/mcp"
 

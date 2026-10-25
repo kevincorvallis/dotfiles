@@ -1,6 +1,6 @@
 # dotfiles
 
-Kevin's macOS dotfiles for Apple Silicon: zsh, Ghostty, AeroSpace, Starship, espanso, Sublime Text and Claude Code.
+Kevin's macOS dotfiles for Apple Silicon: zsh, Ghostty, AeroSpace, Starship, espanso, Sublime Text, Claude Code and Codex skills.
 `bootstrap.sh` copies an explicit allowlist of files into `$HOME` and backs up anything it replaces, so it is safe to re-run.
 Started from [Mathias Bynens' dotfiles](https://github.com/mathiasbynens/dotfiles); MIT licensed (`LICENSE-MIT.txt`).
 
@@ -22,7 +22,7 @@ Keep the clone at `~/code/personal/dotfiles`: `$DOTFILES` and the `edit` alias d
 | Repo path | Deployed to |
 |---|---|
 | `.zshrc` `.exports` `.aliases` `.functions` `.gitconfig` `.gitignore` `.vimrc` `.vim/` `.tmux.conf` `.curlrc` `.inputrc` `.hushlogin` | `~/` |
-| `bin/` (cheatsheet, disk-clean, finder-favorites, obsidian-sync) | `~/bin/` |
+| `bin/` (cheatsheet, cross-review, disk-clean, finder-favorites, obsidian-sync) | `~/bin/` |
 | `.config/ghostty/config`, plus `hosts/<LocalHostName>` if it exists | `~/Library/Application Support/com.mitchellh.ghostty/config` |
 | `.config/aerospace/`, `.config/starship/`, `.config/atuin/` | `~/.config/…` |
 | `.config/karabiner/karabiner.json` (only if absent: Karabiner rewrites it) | `~/.config/karabiner/` |
@@ -30,6 +30,7 @@ Keep the clone at `~/code/personal/dotfiles`: `$DOTFILES` and the `edit` alias d
 | `.config/espanso/config/*.yml`, `.config/espanso/match/*.yml` | `~/Library/Application Support/espanso/` |
 | `.config/sublime/User/` | `~/Library/Application Support/Sublime Text/Packages/User/` |
 | `.config/claude/` (settings, CLAUDE.md, agents, commands, rules, skills, output-styles, hooks, scripts) | `~/.claude/` |
+| `.config/codex/skills/` | `~/.codex/skills/` |
 | `.config/mcp/` (MCP server scripts and `requirements.txt`) | `~/.local/share/mcp/` |
 | `launchagents/*.plist` (templates; `__HOME__` becomes `$HOME`) | `~/Library/LaunchAgents/`, only with `--launchagents` |
 | `Brewfile`, `.macos`, `scripts/`, `*.example`, docs | not deployed; used in place |
@@ -44,6 +45,59 @@ bash bootstrap.sh [-f|--force] [-n|--dry-run] [--launchagents] [-h|--help]
 ```
 
 Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` before the repo copy goes in. Files that are not in the repo are never deleted. On a Mac that already has config, run `-n` first and read the list. A Mac set up by the old rsync bootstrap needs a few steps before its first run; see [SETUP.md](SETUP.md#existing-mac-set-up-by-the-old-rsync-bootstrap).
+
+## Cross-model review
+
+Install and sign in to [Cursor CLI](https://cursor.com/docs/cli/installation), then deploy
+the dotfiles. Invoke `@cross-model-review` in a ChatGPT desktop session with local
+execution access, or `$cross-model-review` in Codex. The skill supports UI critique,
+planning, design, adversarial analysis and code review. It prepares a minimal private
+brief and uses `~/bin/cross-review` to get independent Claude and Gemini perspectives
+in parallel, followed by an optional reconciliation. A cloud-only chat cannot access
+this local runner.
+
+### Sync to another Mac
+
+The skill, its supporting files and the runner travel through this repo. On each Mac,
+pull the published changes and deploy them:
+
+```sh
+cd ~/code/personal/dotfiles
+git pull --ff-only
+bash bootstrap.sh -n
+bash bootstrap.sh -f
+```
+
+This copies `.config/codex/skills/cross-model-review/` to
+`~/.codex/skills/cross-model-review/` and `bin/cross-review` to `~/bin/cross-review`.
+Bootstrap preserves other local skills and Codex settings, and backs up files it replaces.
+The shell's `update` command pulls repositories; run bootstrap afterward to apply them.
+There is no background sync of the installed copies. Make future edits in the repo,
+commit and push them, then pull and deploy on the other Mac.
+
+Each Mac also needs Python 3 (included in the Brewfile) and a separately installed,
+signed-in Cursor CLI; installing the Cursor app alone is insufficient. Follow
+[SETUP step 8](SETUP.md#8-deploy-agent) for the one-time setup. Cursor credentials and
+private review briefs/reports stay local. After deploying, open a new chat and confirm
+the skill is listed; restart the desktop app if it still shows an older skill list.
+
+To run an existing brief directly:
+
+```sh
+~/bin/cross-review run /path/to/private/brief.md --mode planning
+```
+
+The defaults are `claude-opus-5-5-medium` and `gemini-4-argon-high`. To choose other
+models, list the current catalogue with `~/bin/cross-review models`, then pass exact
+IDs using `--claude-model ID` and `--gemini-model ID`. The runner never substitutes models.
+`--dry-run` prepares a run without sending the brief; `--no-reconcile` keeps only the
+independent reviews. Briefs are sent through Cursor to the selected models, so include
+only material authorized for review. Reports, original responses, events and provenance
+stay in `~/.local/state/cross-review/<run>/` by default; `--output DIR` selects another
+empty directory. Keep these artifacts outside the public repo. Model findings need
+source inspection and tests; agreement alone is not proof. Modes are `design` (default),
+`planning`, `ui`, `adversarial`, and `code`. UI reviews receive text/DOM excerpts and
+written observations only; screenshot pixels are not transmitted to either reviewer.
 
 ## Finder Favorites
 
@@ -102,5 +156,5 @@ their normal icons unless another source supplies a mapping.
 
 ## Checks
 
-`bash scripts/check.sh` runs every repo check and exits 1 on any FAIL; `--offline` skips the network lookups. It covers shell syntax under `/bin/bash` 3.2, data-file parsing, a fresh-HOME bootstrap with idempotency and drift tests, a public-repo guard (secrets, `/Users/…` paths, work identifiers), the Brewfile and `.gitignore`. CI runs it on every push (`.github/workflows/check.yml`).
+`bash scripts/check.sh` runs every repo check and exits 1 on any FAIL; `--offline` skips the network lookups. It covers shell syntax under `/bin/bash` 3.2, offline cross-review behavior, data-file parsing, a fresh-HOME bootstrap with idempotency and drift tests, a public-repo guard (secrets, `/Users/…` paths, work identifiers), the Brewfile and `.gitignore`. CI runs it on every push (`.github/workflows/check.yml`).
 For a single machine, `bash bootstrap.sh -n` reports drift between the repo and `$HOME`.

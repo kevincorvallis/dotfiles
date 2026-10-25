@@ -153,6 +153,34 @@ Then open a new shell (`exec zsh -l`); it should start with no output. Anything 
 
 Shell history starts empty on purpose: it can hold secrets. atuin's config filters out lines that look like tokens, secrets, passwords or API keys; run `atuin login` only if you want sync.
 
+### Cross-model review on each Mac [agent] [you]
+
+Bootstrap installs `~/bin/cross-review` and the complete
+`~/.codex/skills/cross-model-review/` skill. Python 3 comes from the Brewfile. The
+Cursor app in the Brewfile does not install Cursor CLI; install the CLI once per Mac
+using [Cursor's installation instructions](https://cursor.com/docs/cli/installation):
+
+```sh
+curl https://cursor.com/install -fsS | bash
+export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
+agent --version
+agent login
+agent status
+~/bin/cross-review models
+```
+
+The [browser sign-in](https://cursor.com/docs/cli/reference/authentication) is a
+**[you]** step on each Mac. Confirm the catalogue includes `claude-opus-5-5-medium`
+and `gemini-4-argon-high`, the runner's defaults. Listing models does not run a paid
+review. If either model is missing, resolve access or choose explicit available IDs;
+the runner does not substitute automatically. Keep credentials and review artifacts
+local; bootstrap only deploys the shared skill and runner.
+
+For later changes, commit and push the repo copies, then on the other Mac run
+`git pull --ff-only` and `bash bootstrap.sh -f` from the dotfiles clone. The shell's
+`update` command pulls the repo but does not deploy its files. Open a new chat after
+deployment; restart the desktop app if the skill list has not refreshed.
+
 ## 9. Optional: per-host Ghostty overlay [agent]
 
 Settings for one Mac only, such as a theme, go in a file named after its `LocalHostName`. Bootstrap appends that file to the base config. `hosts/brock` is an example.
