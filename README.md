@@ -46,11 +46,11 @@ bash bootstrap.sh [-f|--force] [-n|--dry-run] [--launchagents] [-h|--help]
 
 Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` before the repo copy goes in. Files that are not in the repo are never deleted. On a Mac that already has config, run `-n` first and read the list. A Mac set up by the old rsync bootstrap needs a few steps before its first run; see [SETUP.md](SETUP.md#existing-mac-set-up-by-the-old-rsync-bootstrap).
 
-## Cross-model review
+## Thanos
 
 Install and sign in to [Cursor CLI](https://cursor.com/docs/cli/installation), then deploy
-the dotfiles. Invoke `@cross-model-review` in a ChatGPT desktop session with local
-execution access, or `$cross-model-review` in Codex. The skill supports UI critique,
+the dotfiles. Invoke `@thanos` in a ChatGPT desktop session with local
+execution access, or `$thanos` in Codex. The skill supports UI critique,
 planning, design, adversarial analysis and code review. It prepares a minimal private
 brief and uses `~/bin/cross-review` to get independent Claude and Gemini perspectives
 in parallel, followed by an optional reconciliation. A cloud-only chat cannot access
@@ -68,12 +68,17 @@ bash bootstrap.sh -n
 bash bootstrap.sh -f
 ```
 
-This copies `.config/codex/skills/cross-model-review/` to
-`~/.codex/skills/cross-model-review/` and `bin/cross-review` to `~/bin/cross-review`.
+This copies `.config/codex/skills/thanos/` to
+`~/.codex/skills/thanos/` and `bin/cross-review` to `~/bin/cross-review`.
 Bootstrap preserves other local skills and Codex settings, and backs up files it replaces.
 The shell's `update` command pulls repositories; run bootstrap afterward to apply them.
 There is no background sync of the installed copies. Make future edits in the repo,
 commit and push them, then pull and deploy on the other Mac.
+
+If that Mac has the former `cross-model-review` skill, confirm Thanos is installed,
+then move `~/.codex/skills/cross-model-review/` into a dated folder under
+`~/.dotfiles-backup/`. Bootstrap preserves extra skill folders, so this one-time
+step removes the old entry from the skill picker without discarding its files.
 
 Each Mac also needs Python 3 (included in the Brewfile) and a separately installed,
 signed-in Cursor CLI; installing the Cursor app alone is insufficient. Follow

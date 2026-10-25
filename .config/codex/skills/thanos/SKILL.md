@@ -1,9 +1,9 @@
 ---
-name: cross-model-review
+name: thanos
 description: Use Claude and Gemini 4 Argon through Cursor for cross-model UI critique, planning, design, code review, or adversarial analysis when requested. Do not activate for an ordinary single-model review.
 ---
 
-# Cross-model review
+# Thanos
 
 Use `~/bin/cross-review` to send one frozen brief to independent Claude and Gemini reviewers, then assess their findings and optional reconciliation. Defaults are **Claude Opus 5.5** (`claude-opus-5-5-medium`) and **Gemini 4 Argon** (`gemini-4-argon-high`). Preserve explicitly requested models; never silently substitute.
 
@@ -25,7 +25,7 @@ Infer one primary mode from the request; do not require the user to know the fla
 
 For a mixed request, use the dominant mode and include the secondary lenses in the same brief. Run separate passes only when they answer materially different questions or the user requests them. A fresh independent pair plus optional reconciliation uses three model calls; avoid unnecessary repeated runs.
 
-Examples in ChatGPT's skill picker use `@cross-model-review`; Codex uses `$cross-model-review`:
+Examples in ChatGPT's skill picker use `@thanos`; Codex uses `$thanos`:
 
 - “UI: critique this onboarding flow with Claude and Gemini.”
 - “Planning: propose and compare ways to add offline sync.”

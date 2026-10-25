@@ -1,4 +1,0 @@
-interface:
-  display_name: "Cross-model review"
-  short_description: "Claude + Gemini for UI, plans, and adversarial review"
-  default_prompt: "Use $cross-model-review to get independent Claude and Gemini 4 Argon perspectives on this task and resolve their disagreements using evidence."

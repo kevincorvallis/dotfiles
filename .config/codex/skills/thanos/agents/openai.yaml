@@ -1,0 +1,4 @@
+interface:
+  display_name: "Thanos"
+  short_description: "Claude + Gemini for UI, plans, and adversarial review"
+  default_prompt: "Use $thanos to get independent Claude and Gemini 4 Argon perspectives on this task and resolve their disagreements using evidence."

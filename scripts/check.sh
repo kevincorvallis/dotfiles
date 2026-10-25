@@ -463,7 +463,7 @@ bin/cross-review
 .claude/settings.json
 .claude/CLAUDE.md
 .claude/hooks/pre-bash-guard.sh
-.codex/skills/cross-model-review/SKILL.md
+.codex/skills/thanos/SKILL.md
 Library/Application Support/com.mitchellh.ghostty/config
 Library/Application Support/espanso/match'
 

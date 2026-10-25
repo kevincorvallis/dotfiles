@@ -153,10 +153,10 @@ Then open a new shell (`exec zsh -l`); it should start with no output. Anything 
 
 Shell history starts empty on purpose: it can hold secrets. atuin's config filters out lines that look like tokens, secrets, passwords or API keys; run `atuin login` only if you want sync.
 
-### Cross-model review on each Mac [agent] [you]
+### Thanos on each Mac [agent] [you]
 
 Bootstrap installs `~/bin/cross-review` and the complete
-`~/.codex/skills/cross-model-review/` skill. Python 3 comes from the Brewfile. The
+`~/.codex/skills/thanos/` skill. Python 3 comes from the Brewfile. The
 Cursor app in the Brewfile does not install Cursor CLI; install the CLI once per Mac
 using [Cursor's installation instructions](https://cursor.com/docs/cli/installation):
 
@@ -180,6 +180,7 @@ For later changes, commit and push the repo copies, then on the other Mac run
 `git pull --ff-only` and `bash bootstrap.sh -f` from the dotfiles clone. The shell's
 `update` command pulls the repo but does not deploy its files. Open a new chat after
 deployment; restart the desktop app if the skill list has not refreshed.
+For an older `cross-model-review` install, follow the [one-time skill rename step](README.md#sync-to-another-mac) to remove its old picker entry.
 
 ## 9. Optional: per-host Ghostty overlay [agent]
 
