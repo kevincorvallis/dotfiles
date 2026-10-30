@@ -152,7 +152,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$HOME/code/personal/dotfiles/bin/agent-sessions\" hook",
+            "command": "\"$HOME/bin/agent-sessions\" hook",
             "timeout": 10
           }
         ]
@@ -163,7 +163,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$HOME/code/personal/dotfiles/bin/agent-sessions\" hook",
+            "command": "\"$HOME/bin/agent-sessions\" hook",
             "timeout": 10,
             "async": true
           }
