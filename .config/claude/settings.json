@@ -146,6 +146,29 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/code/personal/dotfiles/bin/agent-sessions\" hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/code/personal/dotfiles/bin/agent-sessions\" hook",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
     ]
   },
   "modelSettings": {

@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Index Claude Code sessions by the tickets, PRs, notes and files they touch.
+
+Metadata only: message text never leaves the transcript. Each host appends to
+its own events-<host>.jsonl, so copies from several Macs merge without conflict.
+
+    agent-sessions hook                 # Stop / SessionEnd hook; reads payload on stdin
+    agent-sessions backfill [DIR]       # index existing transcripts (default ~/.claude/projects)
+    agent-sessions find [TERM] [-n N]   # sessions matching a ticket, PR, note, path or title;
+                                        # title matches, then focused (<= 10 tickets/PRs), then broad
+"""
+
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import socket
+import sys
+import time
+import traceback
+
+
+DATA = Path(os.environ.get("AGENT_SESSIONS_DIR")
+            or Path.home() / "Library" / "Application Support" / "agent-sessions")
+HOST = os.environ.get("AGENT_SESSIONS_HOST") or socket.gethostname().split(".")[0]
+
+JIRA_LOOKALIKES = {"SHA", "UTF", "ISO", "RFC", "GPT", "PEP", "TLS", "CVE"}
+NOT_REPOS = {"pr", "prs", "pull", "issue", "issues", "ticket", "step", "item", "no"}
+PULL_URL = re.compile(r"github\.com/[\w.-]+/([\w.-]+)/pull/(\d+)")
+REPO_REF = re.compile(r"(?<![\w./-])(?:[\w.-]+/)?([A-Za-z][\w.-]*)#(\d+)\b")
+WIKILINK = re.compile(r"\[\[([^\[\]|#^\\\n]+)")
+FILE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+LINKS = ("jira", "prs", "notes", "files")
+FOCUSED_MAX = 10
+
+
+def jira_pattern():
+    config = DATA / "config.json"
+    prefixes = json.loads(config.read_text()).get("jira_prefixes") if config.exists() else None
+    if prefixes:
+        return re.compile(r"\b(?:%s)-\d+\b" % "|".join(map(re.escape, prefixes)))
+    return re.compile(r"\b(?!(?:%s)-)[A-Z][A-Z0-9]{1,9}-\d+\b" % "|".join(JIRA_LOOKALIKES))
+
+
+def strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from strings(item)
+
+
+def scan(chunk: bytes, jira) -> dict:
+    found = {"ts": None, "title": None, "cwd": None, "branch": None,
+             "jira": set(), "prs": set(), "notes": set(), "files": set()}
+    for raw in chunk.splitlines():
+        try:
+            entry = json.loads(raw)
+        except ValueError:
+            continue
+        kind = entry.get("type")
+        if kind == "custom-title":
+            found["title"] = entry.get("customTitle") or found["title"]
+            continue
+        if kind not in ("user", "assistant"):
+            continue
+        found["ts"] = max(found["ts"] or "", entry.get("timestamp") or "") or None
+        found["cwd"] = entry.get("cwd") or found["cwd"]
+        found["branch"] = entry.get("gitBranch") or found["branch"]
+        if entry.get("isMeta") or "toolUseResult" in entry:
+            continue
+        content = (entry.get("message") or {}).get("content")
+        texts = [(content, True)] if isinstance(content, str) else []
+        for block in content if isinstance(content, list) else []:
+            if block.get("type") == "text":
+                texts.append((block.get("text") or "", True))
+            elif block.get("type") == "tool_use":
+                tool_input = block.get("input") or {}
+                path = None
+                if block.get("name") in FILE_TOOLS:
+                    path = tool_input.get("file_path") or tool_input.get("notebook_path")
+                    if path:
+                        found["files"].add(path)
+                markdown = bool(path) and path.endswith(".md")
+                texts.extend((s, markdown) for s in strings(tool_input))
+        for text, markdown in texts:
+            found["jira"].update(jira.findall(text))
+            found["prs"].update("%s#%s" % m for m in PULL_URL.findall(text))
+            found["prs"].update("%s#%s" % m for m in REPO_REF.findall(text)
+                                if m[0].lower() not in NOT_REPOS)
+            if markdown:
+                found["notes"].update(n.strip() for n in WIKILINK.findall(text) if n.strip())
+    return found
+
+
+def now() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+
+
+def capture(transcript: Path, session_id: str, event: str, reason=None) -> bool:
+    DATA.mkdir(parents=True, exist_ok=True)
+    state = DATA / "state" / re.sub(r"[^\w.-]", "_", session_id)
+    state.parent.mkdir(exist_ok=True)
+    with open(DATA / "lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        start = int(state.read_text()) if state.exists() else 0
+        if start > transcript.stat().st_size:
+            start = 0
+        with transcript.open("rb") as f:
+            f.seek(start)
+            chunk = f.read()
+        chunk = chunk[:chunk.rfind(b"\n") + 1]
+        if not chunk and event != "SessionEnd":
+            return False
+        found = scan(chunk, jira_pattern())
+        record = {"v": 1, "event": event, "host": HOST, "session_id": session_id,
+                  "captured_at": now(), **{k: v for k, v in found.items() if not isinstance(v, set)},
+                  **{k: sorted(v) for k, v in found.items() if isinstance(v, set)}}
+        if reason:
+            record["reason"] = reason
+        with open(DATA / f"events-{HOST}.jsonl", "a") as out:
+            out.write(json.dumps(record, separators=(",", ":")) + "\n")
+        state.write_text(str(start + len(chunk)))
+    return True
+
+
+def log_error():
+    try:
+        DATA.mkdir(parents=True, exist_ok=True)
+        with open(DATA / "errors.log", "a") as f:
+            f.write("%s %s\n%s\n" % (now(), HOST, traceback.format_exc()))
+    except OSError:
+        pass
+
+
+def hook(stdin: str):
+    payload = json.loads(stdin)
+    capture(Path(payload["transcript_path"]), payload["session_id"],
+            payload.get("hook_event_name") or "Stop", payload.get("reason"))
+
+
+def backfill(root: Path):
+    written = 0
+    for path in sorted([*root.glob("*.jsonl"), *root.glob("*/*.jsonl")]):
+        try:
+            written += capture(path, path.stem, "Backfill")
+        except Exception:
+            log_error()
+    print("indexed %d transcripts into %s" % (written, DATA / f"events-{HOST}.jsonl"))
+
+
+def local_time(ts: str) -> str:
+    return dt.datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone().strftime("%Y-%m-%d %H:%M")
+
+
+def focus(s: dict, term: str) -> int:
+    if not term or term in (s["title"] or "").lower():
+        return 0
+    return 1 if len(s["jira"]) + len(s["prs"]) <= FOCUSED_MAX else 2
+
+
+def find(term: str, limit: int):
+    sessions = {}
+    for path in sorted(DATA.glob("events-*.jsonl")):
+        for raw in path.open():
+            try:
+                r = json.loads(raw)
+            except ValueError:
+                continue
+            s = sessions.setdefault((r["host"], r["session_id"]), {
+                "host": r["host"], "session_id": r["session_id"], "title": None, "cwd": None,
+                "branch": None, "last": "", **{k: set() for k in LINKS}})
+            for field in ("title", "cwd", "branch"):
+                s[field] = r.get(field) or s[field]
+            s["last"] = max(s["last"], r.get("ts") or r.get("captured_at") or "")
+            for k in LINKS:
+                s[k].update(r.get(k, []))
+    term = term.lower()
+    hits = [s for s in sessions.values()
+            if term in " ".join([s["title"] or "", s["cwd"] or "", s["branch"] or "",
+                                 *(x for k in LINKS for x in s[k])]).lower()]
+    newest = sorted(hits, key=lambda s: s["last"], reverse=True)
+    for s in sorted(newest, key=lambda s: focus(s, term))[:limit]:
+        print("%s  %s  %s  [%s]" % (local_time(s["last"]), s["host"], s["title"] or "(untitled)",
+                                     s["branch"] or "-"))
+        parts = [" ".join(sorted(s["jira"])), " ".join(sorted(s["prs"])),
+                 "%d notes" % len(s["notes"]) if s["notes"] else "",
+                 "%d files" % len(s["files"]) if s["files"] else ""]
+        if any(parts):
+            print("    " + " · ".join(p for p in parts if p))
+        resume = "claude -r %s" % s["session_id"]
+        print("    %s" % ("cd %s && %s" % (shlex.quote(s["cwd"]), resume) if s["cwd"] else resume))
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("hook")
+    fill = sub.add_parser("backfill")
+    fill.add_argument("root", nargs="?", type=Path, default=Path.home() / ".claude" / "projects")
+    look = sub.add_parser("find")
+    look.add_argument("term", nargs="?", default="")
+    look.add_argument("-n", type=int, default=20)
+    args = parser.parse_args(argv)
+    if args.cmd == "hook":
+        try:
+            hook(sys.stdin.read())
+        except Exception:
+            log_error()
+    elif args.cmd == "backfill":
+        backfill(args.root)
+    else:
+        find(args.term, args.n)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
