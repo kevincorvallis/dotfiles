@@ -419,7 +419,8 @@ snapshot() {
 }
 
 # deploy_map — "repo-path<TAB>path-under-HOME" for every file bootstrap.sh must
-# deploy (D1 contract). Ghostty is concatenated, so it is checked separately.
+# deploy byte-identical (D1 contract). Ghostty is concatenated and the built_map
+# files are built, so both are checked separately.
 deploy_map() {
 	local f d
 	while IFS= read -r f; do
@@ -431,7 +432,7 @@ deploy_map() {
 			.config/espanso/config/*/* | .config/espanso/match/*/*) continue ;;
 			.config/espanso/config/*.yml | .config/espanso/match/*.yml) d="Library/Application Support/espanso/${f#.config/espanso/}" ;;
 			.config/sublime/User/*) d="Library/Application Support/Sublime Text/Packages/User/${f#.config/sublime/User/}" ;;
-			.config/claude/settings.json | .config/claude/CLAUDE.md | .config/claude/AGENT-GRAPH.md) d=".claude/${f#.config/claude/}" ;;
+			.config/claude/settings.json | .config/claude/AGENT-GRAPH.md) d=".claude/${f#.config/claude/}" ;;
 			.config/claude/agents/* | .config/claude/commands/* | .config/claude/rules/* | .config/claude/skills/* | .config/claude/hooks/* | .config/claude/scripts/* | .config/claude/output-styles/*) d=".claude/${f#.config/claude/}" ;;
 			.config/codex/skills/*) d=".codex/skills/${f#.config/codex/skills/}" ;;
 			.config/mcp/*) d=".local/share/mcp/${f#.config/mcp/}" ;;
@@ -439,6 +440,36 @@ deploy_map() {
 		esac
 		printf '%s\t%s\n' "$f" "$d"
 	done < "$T/files"
+}
+
+# built_map — "repo-path<TAB>path-under-HOME" for every file bootstrap.sh builds
+# before it deploys: each "<!-- include: REPO/PATH -->" line becomes that file.
+built_map() {
+	local f d
+	while IFS= read -r f; do
+		case "$f" in
+			.config/claude/CLAUDE.md) d=.claude/CLAUDE.md ;;
+			.config/codex/AGENTS.md) d=.codex/AGENTS.md ;;
+			.config/cursor/skills/*) d=".cursor/skills/${f#.config/cursor/skills/}" ;;
+			*) continue ;;
+		esac
+		printf '%s\t%s\n' "$f" "$d"
+	done < "$T/files"
+}
+
+# expand SRC OUT — what bootstrap.sh must build from SRC when there is no overlay
+expand() {
+	awk '
+		/^<!-- include: .* -->$/ {
+			f = $0
+			sub(/^<!-- include: /, "", f)
+			sub(/ -->$/, "", f)
+			while ((getline line < f) > 0) print line
+			close(f)
+			next
+		}
+		{ print }
+	' "$1" > "$2"
 }
 
 REQUIRED='.zshrc
@@ -463,7 +494,9 @@ bin/cross-review
 .claude/settings.json
 .claude/CLAUDE.md
 .claude/hooks/pre-bash-guard.sh
+.codex/AGENTS.md
 .codex/skills/thanos/SKILL.md
+.cursor/skills/plain-writing/SKILL.md
 Library/Application Support/com.mitchellh.ghostty/config
 Library/Application Support/espanso/match'
 
@@ -481,7 +514,10 @@ launchagents
 .git
 .extra
 .extra.example
+.config/agents
 .claude/settings.local.json
+.claude/CLAUDE.local.md
+.codex/AGENTS.local.md
 Library/LaunchAgents'
 
 GHOSTTY_DST='Library/Application Support/com.mitchellh.ghostty/config'
@@ -489,6 +525,20 @@ GHOSTTY_DST='Library/Application Support/com.mitchellh.ghostty/config'
 bootstrap_checks() {
 	local H1="$T/home1" H2="$T/home2" p f d rc n bad host
 	mkdir -p "$H1" "$H2"
+
+	# --- every include in a built file resolves (a missing one aborts bootstrap) ---
+	built_map > "$T/built"
+	bad=0
+	while IFS="$(printf '\t')" read -r f d; do
+		grep -E '^<!-- include: .* -->$' "$f" | sed -e 's/^<!-- include: //' -e 's/ -->$//' > "$T/incs"
+		while IFS= read -r p; do
+			if [ ! -f "$p" ]; then
+				bad=$((bad + 1))
+				fail "$f includes a file that is missing: $p"
+			fi
+		done < "$T/incs"
+	done < "$T/built"
+	if [ "$bad" = 0 ]; then pass "built files: every include resolves"; fi
 
 	# --- run 1 on an empty HOME ---
 	if ! run_bootstrap "$H1" "$T/run1.log" -f; then
@@ -554,6 +604,24 @@ bootstrap_checks() {
 	done < "$T/map"
 	if [ "$bad" = 0 ]; then pass "deploy map: $n files byte-identical (bin/ and hooks executable)"; fi
 
+	# --- built files: includes expanded; a fresh HOME has no overlay ---
+	n=0 bad=0
+	while IFS="$(printf '\t')" read -r f d; do
+		n=$((n + 1))
+		expand "$f" "$T/want"
+		if [ ! -e "$H1/$d" ]; then
+			bad=$((bad + 1))
+			fail "not deployed: $f -> ~/$d"
+		elif ! cmp -s "$T/want" "$H1/$d"; then
+			bad=$((bad + 1))
+			fail "built copy is not the repo file with its includes expanded: $f -> ~/$d"
+		elif grep -q '^<!-- include: ' "$H1/$d"; then
+			bad=$((bad + 1))
+			fail "built copy still has an include line: ~/$d"
+		fi
+	done < "$T/built"
+	if [ "$bad" = 0 ]; then pass "built files: $n deployed with includes expanded"; fi
+
 	host="$(scutil --get LocalHostName 2> /dev/null)" || host="$(hostname -s 2> /dev/null)" || host=""
 	if [ -f "$H1/$GHOSTTY_DST" ] && [ -f .config/ghostty/config ]; then
 		cp .config/ghostty/config "$T/ghostty.want"
@@ -571,7 +639,7 @@ bootstrap_checks() {
 		fi
 	fi
 
-	{ cut -f 2 "$T/map"; echo "$GHOSTTY_DST"; } | LC_ALL=C sort -u > "$T/expected"
+	{ cut -f 2 "$T/map"; cut -f 2 "$T/built"; echo "$GHOSTTY_DST"; } | LC_ALL=C sort -u > "$T/expected"
 	(cd "$H1" && find . \( -type f -o -type l \) ! -name .DS_Store | sed 's|^\./||' | LC_ALL=C sort) > "$T/actual"
 	LC_ALL=C comm -23 "$T/actual" "$T/expected" > "$T/err"
 	if [ -s "$T/err" ]; then
@@ -654,6 +722,9 @@ bootstrap_checks() {
 		printf '\n' >> "$H1/.config/karabiner/karabiner.json"
 	fi
 	cp "$H1/.config/karabiner/karabiner.json" "$T/karabiner.drift" 2> /dev/null
+	# machine-local overlays: the real run below must append them and leave them alone
+	printf '%s\n' '# overlay fixture' > "$H1/.claude/CLAUDE.local.md"
+	printf '%s\n' '# overlay fixture' > "$H1/.codex/AGENTS.local.md"
 	snapshot "$H1" "$T/snap3"
 	if ! run_bootstrap "$H1" "$T/drift-dry.log" -n; then
 		fail "bootstrap.sh -n with drift exited non-zero"
@@ -687,6 +758,23 @@ bootstrap_checks() {
 				fail "bootstrap overwrote an existing karabiner.json (must copy only if absent)"
 			fi
 		fi
+		bad=0
+		for p in .claude/CLAUDE .codex/AGENTS; do
+			case "$p" in
+				.claude/*) f=.config/claude/CLAUDE.md ;;
+				*) f=.config/codex/AGENTS.md ;;
+			esac
+			expand "$f" "$T/want"
+			{ printf '\n'; cat "$H1/$p.local.md"; } >> "$T/want"
+			if ! cmp -s "$T/want" "$H1/$p.md"; then
+				bad=1
+				fail "overlay not appended: ~/$p.md is not the built file plus ~/$p.local.md"
+			elif [ "$(cat "$H1/$p.local.md")" != '# overlay fixture' ]; then
+				bad=1
+				fail "bootstrap changed the machine-local ~/$p.local.md"
+			fi
+		done
+		if [ "$bad" = 0 ]; then pass "machine-local overlays (CLAUDE.local.md, AGENTS.local.md) appended and left alone"; fi
 	fi
 
 	# --- a fresh interactive zsh starts clean (fixed TERM: the caller's may be dumb or unset) ---

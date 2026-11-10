@@ -21,14 +21,16 @@ An explicit allowlist. Identical files are left alone. A file that differs is mo
 - `.config/espanso/{config,match}/*.yml` go to `~/Library/Application Support/espanso/`.
 - `.config/sublime/User/*` goes to Sublime Text's `Packages/User/`.
 - `.config/claude/` goes to `~/.claude/`: settings.json, CLAUDE.md, AGENT-GRAPH.md, and the agents, commands, rules, skills, output-styles, scripts and hooks dirs (`hooks/*.sh` made executable).
-- `.config/codex/skills/` goes to `~/.codex/skills/`; other Codex files and local skills are preserved. Cross-model review also needs Cursor CLI installed and signed in on each Mac (SETUP.md step 8).
+- `.config/codex/AGENTS.md` goes to `~/.codex/AGENTS.md` and `.config/codex/skills/` to `~/.codex/skills/`; other Codex files and local skills are preserved. Cross-model review also needs Cursor CLI installed and signed in on each Mac (SETUP.md step 8).
+- `.config/cursor/skills/` goes to `~/.cursor/skills/`; other local skills are preserved.
+- `.config/agents/*.md` hold the shared agent rules (writing, PR descriptions) and are not deployed alone. `.config/claude/CLAUDE.md`, `.config/codex/AGENTS.md` and the Cursor skills are built: each `<!-- include: REPO/PATH -->` line becomes that file. Then `~/.claude/CLAUDE.local.md` or `~/.codex/AGENTS.local.md` is appended when it exists.
 - `.config/mcp/*` goes to `~/.local/share/mcp/`.
 - `launchagents/*.plist` go to `~/Library/LaunchAgents/` only with `--launchagents`. `__HOME__` becomes `$HOME`, and launchctl reloads any agent that changed or isn't loaded.
 - Never deployed: this file, README.md, SETUP.md, LICENSE-MIT.txt, Brewfile, .macos, scripts/, .github/, `*.example` and .claude/.
 
 This `CLAUDE.md` is repo guidance. `.config/claude/CLAUDE.md` is the global file that becomes `~/.claude/CLAUDE.md`.
 
-To add a deployed path, update `bootstrap.sh`, `deploy_map()` in `scripts/check.sh`, and the README layout table.
+To add a deployed path, update `bootstrap.sh`, `deploy_map()` in `scripts/check.sh` (`built_map()` for a built file), and the README layout table.
 
 ## Shell
 
@@ -43,10 +45,12 @@ To add a deployed path, update `bootstrap.sh`, `deploy_map()` in `scripts/check.
 - `~/.gitconfig.local`, included last by `.gitconfig`: other identities and commit signing. Tracked files carry no signing config.
 - espanso `match/private.yml` (template `match/private.yml.example`): identity snippets, and any machine-only triggers.
 - `~/.mcp.json` (from `.config/mcp/mcp.json.example`) and `~/.claude/settings.local.json`.
+- `~/.claude/CLAUDE.local.md` and `~/.codex/AGENTS.local.md`: agent rules for this Mac only, such as work rules or notes on other machines. Bootstrap reads them and appends them to the built file.
 
 ## Rules
 
 - Edit the repo copy, never the deployed copy in `~`.
+- A shared agent rule lives in one file under `.config/agents/`. Change it there; never paste it into a tool's own file.
 - `bootstrap.sh`, `.macos`, `scripts/check.sh` and the bash scripts in `bin/` must run on macOS `/bin/bash` 3.2. That rules out associative arrays, `mapfile`, `${x,,}` and `|&`.
 - Public repo: no secrets, no `/Users/<name>` paths (use `$HOME`), no employer or work identifiers, no real personal details. check.sh fails on these.
 - Every hook referenced in `.config/claude/settings.json` must exist in the repo.

@@ -140,6 +140,39 @@ install_tree() {
 	done 3< "$TMP/tree"
 }
 
+# build SRC OUT [OVERLAY] — write SRC to OUT with every line of the form
+# "<!-- include: REPO/PATH -->" replaced by that repo file's contents. When
+# OVERLAY exists (an untracked machine-local file), append it after a blank line.
+build() {
+	local src=$1 out=$2 overlay=${3:-} line inc
+	: > "$out"
+	while IFS= read -r line || [ -n "$line" ]; do
+		case "$line" in
+			'<!-- include: '*' -->')
+				inc=${line#'<!-- include: '}
+				inc=${inc%' -->'}
+				cat "$inc" >> "$out"
+				;;
+			*) printf '%s\n' "$line" >> "$out" ;;
+		esac
+	done < "$src"
+	if [ -n "$overlay" ] && [ -f "$overlay" ]; then
+		printf '\n' >> "$out"
+		cat "$overlay" >> "$out"
+		say "overlay" "$(pretty "$overlay")"
+	fi
+}
+
+# deploy_built SRC DST [OVERLAY] — deploy for a file that is built first (see build).
+deploy_built() {
+	if [ ! -f "$1" ]; then
+		skip "$1"
+		return 0
+	fi
+	build "$1" "$TMP/built" "${3:-}"
+	install_file "$TMP/built" "$2"
+}
+
 # ---------- deploy ----------
 if [ "$DRY" = 1 ]; then
 	echo "Dry run: nothing will be written."
@@ -207,16 +240,30 @@ section "Sublime Text"
 install_tree .config/sublime/User "$HOME/Library/Application Support/Sublime Text/Packages/User"
 
 section "Claude Code (~/.claude)"
-for f in settings.json CLAUDE.md AGENT-GRAPH.md; do
+for f in settings.json AGENT-GRAPH.md; do
 	deploy ".config/claude/$f" "$HOME/.claude/$f"
 done
+# CLAUDE.md, AGENTS.md and the Cursor skills are built: the shared rules in
+# .config/agents/ are included, then this Mac's own *.local.md is appended.
+deploy_built .config/claude/CLAUDE.md "$HOME/.claude/CLAUDE.md" "$HOME/.claude/CLAUDE.local.md"
 for d in agents commands rules skills scripts output-styles; do
 	install_tree ".config/claude/$d" "$HOME/.claude/$d"
 done
 install_tree .config/claude/hooks "$HOME/.claude/hooks" '*.sh'
 
-section "Codex skills (~/.codex/skills)"
+section "Codex (~/.codex)"
+deploy_built .config/codex/AGENTS.md "$HOME/.codex/AGENTS.md" "$HOME/.codex/AGENTS.local.md"
 install_tree .config/codex/skills "$HOME/.codex/skills"
+
+section "Cursor skills (~/.cursor/skills)"
+if [ -d .config/cursor/skills ]; then
+	find .config/cursor/skills -type f ! -name .DS_Store | LC_ALL=C sort > "$TMP/tree"
+	while IFS= read -r f <&3; do
+		deploy_built "$f" "$HOME/.cursor/skills/${f#.config/cursor/skills/}"
+	done 3< "$TMP/tree"
+else
+	skip .config/cursor/skills/
+fi
 
 section "MCP server scripts (~/.local/share/mcp)"
 install_tree .config/mcp "$HOME/.local/share/mcp"

@@ -29,8 +29,10 @@ Keep the clone at `~/code/personal/dotfiles`: `$DOTFILES` and the `edit` alias d
 | `.config/finder/favorites.txt` (personal sidebar folder list) | `~/.config/finder/`; import explicitly with `finder-favorites` |
 | `.config/espanso/config/*.yml`, `.config/espanso/match/*.yml` | `~/Library/Application Support/espanso/` |
 | `.config/sublime/User/` | `~/Library/Application Support/Sublime Text/Packages/User/` |
-| `.config/claude/` (settings, CLAUDE.md, agents, commands, rules, skills, output-styles, hooks, scripts) | `~/.claude/` |
-| `.config/codex/skills/` | `~/.codex/skills/` |
+| `.config/agents/*.md` (shared agent rules: writing, PR descriptions) | not deployed alone; built into the next three rows wherever a file has an `<!-- include: .config/agents/NAME.md -->` line |
+| `.config/claude/` (settings, CLAUDE.md, agents, commands, rules, skills, output-styles, hooks, scripts) | `~/.claude/`; `~/.claude/CLAUDE.local.md`, if it exists, is appended to `CLAUDE.md` |
+| `.config/codex/AGENTS.md`, `.config/codex/skills/` | `~/.codex/`; `~/.codex/AGENTS.local.md`, if it exists, is appended to `AGENTS.md` |
+| `.config/cursor/skills/` | `~/.cursor/skills/` |
 | `.config/mcp/` (MCP server scripts and `requirements.txt`) | `~/.local/share/mcp/` |
 | `launchagents/*.plist` (templates; `__HOME__` becomes `$HOME`) | `~/Library/LaunchAgents/`, only with `--launchagents` |
 | `Brewfile`, `.macos`, `scripts/`, `*.example`, docs | not deployed; used in place |

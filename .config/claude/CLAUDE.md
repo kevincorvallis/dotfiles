@@ -10,11 +10,9 @@
 - No multi-line descriptions unless explicitly asked
 - On commit or push, update the relevant Obsidian note to reflect what was done
 
-# PR Descriptions
+<!-- include: .config/agents/writing.md -->
 
-- Open with one plain paragraph on the intended behavior, covering the 5Ws (what changes, who it affects, where in the system, when it applies, why) — a reviewer should get the intent in ~60 seconds
-- Close with a prose paragraph on how the change was validated — only claims backed by evidence; say plainly what is red or unverified
-- Plain prose, ≤4 short paragraphs, ~150–200 words (intent ≤80, validation ≤60): no headers, bold labels, checklists, or file paths; tickets as links; no AI-attribution footer
+<!-- include: .config/agents/pr-descriptions.md -->
 
 # AI CLI Tools
 
@@ -43,6 +41,7 @@ Full recipe: `~/.claude/skills/layered-explanations/SKILL.md`
 
 - Keep `.claude/` and `.agents/` files minimal and concise
 - Don't overcomplicate — short, clear directives only
+- `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md` and `~/.cursor/skills/` are built from `~/code/personal/dotfiles` (`.config/`). Edit the repo copy, not the copy in `~`. Machine-only lines go in `~/.claude/CLAUDE.local.md` or `~/.codex/AGENTS.local.md`
 
 # Agent Graph
 
