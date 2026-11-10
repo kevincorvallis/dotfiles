@@ -46,3 +46,283 @@ matches:
     replace: "🙏"
   - trigger: ";clap"
     replace: "👏"
+
+  # Additional shortcuts from the other Mac.
+  - trigger: ;smile
+    replace: 😄
+  - trigger: ;laugh
+    replace: 😂
+  - trigger: ;rofl
+    replace: 🤣
+  - trigger: ;wink
+    replace: 😉
+  - trigger: ;sweat
+    replace: 😅
+  - trigger: ;cry
+    replace: 😢
+  - trigger: ;tear
+    replace: 😭
+  - trigger: ;think
+    replace: 🤔
+  - trigger: ;shrug
+    replace: 🤷
+  - trigger: ;facepalm
+    replace: 🤦
+  - trigger: ;eyeroll
+    replace: 🙄
+  - trigger: ;sigh
+    replace: 😮‍💨
+  - trigger: ;sleep
+    replace: 😴
+  - trigger: ;cool
+    replace: 😎
+  - trigger: ;nerd
+    replace: 🤓
+  - trigger: ;angry
+    replace: 😠
+  - trigger: ;wow
+    replace: 😮
+  - trigger: ;plead
+    replace: 🥺
+  - trigger: ;salute
+    replace: 🫡
+  - trigger: ;hug
+    replace: 🤗
+  - trigger: ;heart
+    replace: ❤️
+  - trigger: ;broken
+    replace: 💔
+  - trigger: ;sparkles
+    replace: ✨
+  - trigger: ;party
+    replace: 🥳
+  - trigger: ;skull
+    replace: 💀
+  - trigger: ;bug
+    replace: 🐛
+  - trigger: ;wrench
+    replace: 🔧
+  - trigger: ;bulb
+    replace: 💡
+  - trigger: ;target
+    replace: 🎯
+  - trigger: ;lock
+    replace: 🔒
+  - trigger: ;key
+    replace: 🔑
+  - trigger: ;hourglass
+    replace: ⏳
+  - trigger: ;muscle
+    replace: 💪
+  - trigger: ;handshake
+    replace: 🤝
+  - trigger: ;fingers
+    replace: 🤞
+  - trigger: ;coffee
+    replace: ☕
+  - trigger: ;beer
+    replace: 🍺
+  - trigger: ;pizza
+    replace: 🍕
+  - trigger: ;cake
+    replace: 🎂
+  - trigger: ;popcorn
+    replace: 🍿
+  - trigger: ;grin
+    replace: 😁
+  - trigger: ;blush
+    replace: 😊
+  - trigger: ;angel
+    replace: 😇
+  - trigger: ;love
+    replace: 😍
+  - trigger: ;kiss
+    replace: 😘
+  - trigger: ;yum
+    replace: 😋
+  - trigger: ;tongue
+    replace: 😛
+  - trigger: ;silly
+    replace: 😜
+  - trigger: ;crazy
+    replace: 🤪
+  - trigger: ;smirk
+    replace: 😏
+  - trigger: ;neutral
+    replace: 😐
+  - trigger: ;unamused
+    replace: 😒
+  - trigger: ;confused
+    replace: 😕
+  - trigger: ;worried
+    replace: 😟
+  - trigger: ;sad
+    replace: 😞
+  - trigger: ;frown
+    replace: 🙁
+  - trigger: ;shocked
+    replace: 😱
+  - trigger: ;flushed
+    replace: 😳
+  - trigger: ;sick
+    replace: 🤒
+  - trigger: ;nauseated
+    replace: 🤢
+  - trigger: ;vomit
+    replace: 🤮
+  - trigger: ;sneeze
+    replace: 🤧
+  - trigger: ;shush
+    replace: 🤫
+  - trigger: ;emoji-zipper
+    replace: 🤐
+  - trigger: ;drool
+    replace: 🤤
+  - trigger: ;devil
+    replace: 😈
+  - trigger: ;clown
+    replace: 🤡
+  - trigger: ;poop
+    replace: 💩
+  - trigger: ;robot
+    replace: 🤖
+  - trigger: ;spook
+    replace: 👻
+  - trigger: ;pink
+    replace: 🩷
+  - trigger: ;orange
+    replace: 🧡
+  - trigger: ;yellow
+    replace: 💛
+  - trigger: ;green
+    replace: 💚
+  - trigger: ;blue
+    replace: 💙
+  - trigger: ;purple
+    replace: 💜
+  - trigger: ;black
+    replace: 🖤
+  - trigger: ;white
+    replace: 🤍
+  - trigger: ;brown
+    replace: 🤎
+  - trigger: ;twohearts
+    replace: 💕
+  - trigger: ;peace
+    replace: ✌️
+  - trigger: ;fist
+    replace: ✊
+  - trigger: ;punch
+    replace: 👊
+  - trigger: ;right
+    replace: 👉
+  - trigger: ;left
+    replace: 👈
+  - trigger: ;perfect
+    replace: 👌
+  - trigger: ;handsup
+    replace: 🙌
+  - trigger: ;stop
+    replace: ✋
+  - trigger: ;handheart
+    replace: 🫶
+  - trigger: ;computer
+    replace: 💻
+  - trigger: ;phoneemoji
+    replace: 📱
+  - trigger: ;email
+    replace: 📧
+  - trigger: ;camera
+    replace: 📷
+  - trigger: ;music
+    replace: 🎵
+  - trigger: ;headphones
+    replace: 🎧
+  - trigger: ;book
+    replace: 📚
+  - trigger: ;money
+    replace: 💰
+  - trigger: ;gift
+    replace: 🎁
+  - trigger: ;balloon
+    replace: 🎈
+  - trigger: ;trophy
+    replace: 🏆
+  - trigger: ;crown
+    replace: 👑
+  - trigger: ;bell
+    replace: 🔔
+  - trigger: ;pushpin
+    replace: 📌
+  - trigger: ;memo
+    replace: 📝
+  - trigger: ;gear
+    replace: ⚙️
+  - trigger: ;water
+    replace: 💧
+  - trigger: ;wine
+    replace: 🍷
+  - trigger: ;cheers
+    replace: 🥂
+  - trigger: ;teacup
+    replace: 🍵
+  - trigger: ;burger
+    replace: 🍔
+  - trigger: ;fries
+    replace: 🍟
+  - trigger: ;taco
+    replace: 🌮
+  - trigger: ;sushi
+    replace: 🍣
+  - trigger: ;ramen
+    replace: 🍜
+  - trigger: ;donut
+    replace: 🍩
+  - trigger: ;cookie
+    replace: 🍪
+  - trigger: ;icecream
+    replace: 🍦
+  - trigger: ;sun
+    replace: ☀️
+  - trigger: ;moon
+    replace: 🌙
+  - trigger: ;emoji-cloud
+    replace: ☁️
+  - trigger: ;raincloud
+    replace: 🌧️
+  - trigger: ;rainbow
+    replace: 🌈
+  - trigger: ;snow
+    replace: ❄️
+  - trigger: ;bolt
+    replace: ⚡
+  - trigger: ;earth
+    replace: 🌎
+  - trigger: ;flower
+    replace: 🌸
+  - trigger: ;rose
+    replace: 🌹
+  - trigger: ;tree
+    replace: 🌳
+  - trigger: ;plant
+    replace: 🌱
+  - trigger: ;dog
+    replace: 🐶
+  - trigger: ;cat
+    replace: 🐱
+  - trigger: ;panda
+    replace: 🐼
+  - trigger: ;fox
+    replace: 🦊
+  - trigger: ;frog
+    replace: 🐸
+  - trigger: ;plane
+    replace: ✈️
+  - trigger: ;car
+    replace: 🚗
+  - trigger: ;basketball
+    replace: 🏀
+  - trigger: ;football
+    replace: ⚽
+  - trigger: ;tennis
+    replace: 🎾
