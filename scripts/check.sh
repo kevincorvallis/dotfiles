@@ -258,6 +258,25 @@ else
 	indent "$T/err"
 fi
 
+# prose-lint has no dependencies, so it must also run on the macOS system python3 (3.9).
+if [ ! -f tests/test_prose_lint.py ]; then
+	fail "prose-lint: behavioral test suite missing"
+elif ! have "$py"; then
+	skip "prose-lint tests: python3 not installed"
+else
+	for p in "$py" /usr/bin/python3; do
+		if [ "$p" = /usr/bin/python3 ] && { [ ! -x "$p" ] || [ "$(command -v "$py")" = "$p" ]; }; then
+			continue
+		fi
+		if "$p" -B -I -m unittest discover -s tests -p 'test_prose_lint.py' > "$T/err" 2>&1; then
+			pass "prose-lint behavioral tests ($("$p" -c 'import platform; print("python " + platform.python_version())'))"
+		else
+			fail "prose-lint behavioral tests ($p)"
+			indent "$T/err"
+		fi
+	done
+fi
+
 # =====================================================================
 section "2. Data files"
 # =====================================================================
@@ -486,6 +505,7 @@ REQUIRED='.zshrc
 bin/disk-clean
 bin/finder-favorites
 bin/cross-review
+bin/prose-lint
 .config/finder/favorites.txt
 .config/starship/starship.toml
 .config/aerospace/aerospace.toml

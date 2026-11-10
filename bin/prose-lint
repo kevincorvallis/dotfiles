@@ -1,0 +1,326 @@
+#!/usr/bin/env python3
+"""Check prose against the measurable part of the writing rules.
+
+    prose-lint [-q] [FILE ...]      # Markdown or plain text; no FILE, or "-", reads stdin
+
+Findings (exit 1):
+  long-sentence   more than 25 words; more than 20 in a numbered step
+  stock-phrase    a worn phrase, or a long word that has a plain one
+
+Warnings (exit 0; -q hides them). These are guesses, so read each one:
+  passive         passive voice with a named actor ("was made by the team")
+  passive?        passive voice with no actor; fine when the actor is unknown
+  noun-stack      four or more nouns in a row
+
+YAML frontmatter, code blocks, inline code, tables, headings, HTML and URLs
+are not checked.
+Private phrases: ~/.config/prose-lint/phrases.txt, one per line, written as
+"phrase" or "phrase => plain word" (set PROSE_LINT_PHRASES to use another file).
+The tool only reports. Break a rule when the alternative is ugly or unclear.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+import re
+import sys
+
+LIMIT, STEP_LIMIT, STACK = 25, 20, 4
+CODE, URL = "CODESPAN", "URLTOKEN"
+
+# (regex, plain alternative or "")
+PHRASES = [
+    (r"it(?:'s|’s| is) worth noting(?: that)?", ""),
+    (r"delv(?:e|es|ed|ing)", "look at"),
+    (r"leverag(?:e|es|ed|ing)", "use"),
+    (r"utili[sz](?:e|es|ed|ing|ation)", "use"),
+    (r"facilitat(?:e|es|ed|ing)", "help"),
+    (r"in order to", "to"),
+    (r"due to the fact that", "because"),
+    (r"the fact that", "that"),
+    (r"at this point in time", "now"),
+    (r"at the end of the day", ""),
+    (r"going forward", "from now on"),
+    (r"moving forward", "from now on"),
+    (r"in the event that", "if"),
+    (r"with regards? to", "about"),
+    (r"prior to", "before"),
+    (r"subsequent to", "after"),
+    (r"basically", ""),
+    (r"bottom line", ""),
+    (r"low-hanging fruit", ""),
+    (r"move the needle", ""),
+    (r"deep dive", "close look"),
+    (r"circle back", "return"),
+    (r"touch base", "talk"),
+    (r"game[- ]changer", ""),
+    (r"best[- ]in[- ]class", "best"),
+    (r"paradigm shift", "change"),
+    (r"synerg(?:y|ies)", ""),
+    (r"think outside the box", ""),
+]
+
+ABBREVIATIONS = {"e.g", "i.e", "etc", "vs", "cf", "mr", "mrs", "ms", "dr", "approx", "fig", "inc", "ltd",
+                 "co", "al", "ca", "vol", "ch", "sec", "est"}
+
+BE = {"am", "is", "are", "was", "were", "be", "been", "being"}
+BETWEEN = {"not", "never", "also", "always", "only", "already", "still", "just", "now", "then", "often",
+           "usually", "once", "first", "later", "again", "even", "ever", "soon", "thus", "both", "all"}
+IRREGULAR = set("""
+    begun bound bought broken brought built caught chosen cut dealt done drawn driven fed felt forgotten
+    found frozen given grown heard held hidden hit kept known laid led left lost made meant met overridden
+    overwritten paid put read rebuilt rewritten run said seen sent set shown sold spent split spread stuck
+    taken taught thought thrown told torn understood withdrawn won worn written
+""".split())
+NOT_PARTICIPLES = set("""
+    advanced based complicated concerned excited experienced interested limited pleased related supposed
+    surprised tired worried
+""".split())
+NOT_ACTORS = {"hand", "default", "design", "mistake", "then", "now", "far", "itself", "name", "path", "line",
+              "date", "size", "then", "accident", "chance", "one", "two"}
+
+# Words that are not nouns, so they end a run of nouns.
+BREAKERS = set("""
+    a an the this that these those my your his her its our their some any no each every either neither both
+    all many much more most few fewer less least other another such same own several enough
+    i you he she it we they me him us them who whom whose which what where when why how
+    and or but nor so yet if then than because although though while unless until since as whether
+    of in on at by for with without from to into onto over under between among through during before
+    after above below against about around across along per via within inside outside near off up down out
+    am is are was were be been being have has had having do does did doing will would shall should can
+    could may might must
+    not never also always only already still just now here there today tomorrow yesterday again once
+    too very quite rather almost often usually soon later first last next
+    one two three four five six seven eight nine ten zero
+    new old big small large long short high low good bad best better worse full empty whole real true
+    false same main local remote public private live plain clean fresh extra final single open free
+    current next previous early late right wrong ready safe unsafe possible different
+    add adds ask asks call calls change changes check checks come comes contain contains copy copies
+    create creates delete deletes differ differs exist exists fail fails find finds fix fixes get gets
+    give gives go goes hold holds include includes keep keeps leave leaves let lets list lists load loads
+    look looks make makes match matches mean means move moves need needs open opens pass passes point points
+    print prints push pushes put puts read reads remove removes replace replaces report reports return
+    returns run runs say says see sees send sends set sets show shows skip skips start starts stay stays
+    stop stops take takes tell tells test tests use uses want wants work works write writes
+""".split())
+ADJECTIVE_ENDINGS = ("ed", "ing", "ly", "ous", "ful", "less")
+
+WORD = re.compile(r"[A-Za-z0-9][\w'’./~+-]*")
+SENTENCE_END = re.compile(r"([.!?]+)([\"'”’)\]]*)(\s+)(?=[\"'“‘(\[]?[A-Za-z0-9])")
+LIST_ITEM = re.compile(r"^\s*(?:([-*+])|(\d+[.)]))\s+(?:\[[ xX]\]\s+)?")
+# A bold label that opens a block, such as "**Verified by:** ...", is not part of the sentence.
+LABEL = re.compile(r"^\s*\*\*[^*]{1,40}(?::\*\*|\*\*:)\s*")
+
+
+def clean(line: str) -> str:
+    """Drop markup; replace each code span and URL with one placeholder word."""
+    line = re.sub(r"<!--.*?-->", " ", line)
+    line = re.sub(r"`+[^`]*`+", f" {CODE} ", line)
+    line = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", line)
+    line = re.sub(r"\[([^\]]+)\]\[[^\]]*\]", r"\1", line)
+    line = re.sub(r"<?\bhttps?://[^\s>)]+>?", f" {URL} ", line)
+    line = re.sub(r"</?[A-Za-z][^>]*>", " ", line)
+    return line.replace("*", "")
+
+
+def blocks(text: str):
+    """Yield (is_step, [(lineno, cleaned line), ...]) for each paragraph and list item."""
+    current, step, fence, comment = [], False, False, False
+    lines = text.splitlines()
+    frontmatter = 0  # last line of a YAML block that opens the file
+    if lines and lines[0].strip() == "---":
+        frontmatter = next((n for n, line in enumerate(lines[1:], 2) if line.strip() in ("---", "...")), 0)
+    for number, raw in enumerate(lines, 1):
+        if number <= frontmatter:
+            continue
+        line = raw.rstrip()
+        if re.match(r"^\s*(```|~~~)", line):
+            fence = not fence
+            line = ""
+        elif fence:
+            continue
+        if comment:
+            comment = "-->" not in line
+            line = line.split("-->", 1)[1] if not comment else ""
+        if "<!--" in line and "-->" not in line.split("<!--", 1)[1]:
+            comment, line = True, line.split("<!--", 1)[0]
+        line = re.sub(r"^\s*(?:>\s?)+", "", line)
+        special = re.match(r"^\s{0,3}#{1,6}(\s|$)|^\s*\||^\s*([-*_]\s*){3,}$", line)
+        item = LIST_ITEM.match(line)
+        if not line.strip() or special or item:
+            if current:
+                yield step, current
+            current, step = [], False
+            if not item:
+                continue
+            step, line = bool(item.group(2)), line[item.end():]
+        if not current:
+            line = LABEL.sub("", line)
+        cleaned = clean(line)
+        if cleaned.strip():
+            current.append((number, cleaned.strip()))
+    if current:
+        yield step, current
+
+
+def sentences(parts):
+    """Yield (lineno, sentence) for the joined lines of one block."""
+    text, starts = "", []
+    for number, line in parts:
+        if text:
+            text += " "
+        starts.append((len(text), number))
+        text += line
+    begin = 0
+    cuts = []
+    for match in SENTENCE_END.finditer(text):
+        before = text[:match.end(1)].split()[-1].strip("\"'“‘(").rstrip(".!?").lower()
+        if before in ABBREVIATIONS or (len(before) == 1 and before.isalpha() and before not in ("i", "a")):
+            continue
+        following = text[match.end(3):match.end(3) + 2].lstrip("\"'“‘([")[:1]
+        if following.islower() and "." in before:  # "a.k.a. the", "bootstrap.sh. then": probably not an end
+            continue
+        cuts.append((match.end(2), match.end(3)))
+    for end, following in cuts + [(len(text), len(text))]:
+        sentence = text[begin:end].strip()
+        if sentence:
+            offset = begin + (len(text[begin:end]) - len(text[begin:end].lstrip()))
+            number = [n for start, n in starts if start <= offset][-1]
+            yield number, sentence
+        begin = following
+
+
+def load_phrases():
+    table = [(re.compile(r"(?<![\w-])(?:%s)(?![\w-])" % pattern, re.I), plain) for pattern, plain in PHRASES]
+    path = Path(os.environ.get("PROSE_LINT_PHRASES") or Path.home() / ".config/prose-lint/phrases.txt")
+    if path.is_file():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            phrase, _, plain = (part.strip() for part in line.partition("=>"))
+            if phrase:
+                table.append((re.compile(r"(?<![\w-])%s(?![\w-])" % re.escape(phrase), re.I), plain))
+    return table
+
+
+def passive(sentence: str):
+    """Yield (kind, text) for each be-verb + past participle."""
+    tokens = [(m.group(0), m.start(), m.end()) for m in re.finditer(r"[A-Za-z][A-Za-z'’-]*", sentence)]
+    lowered = [t[0].lower() for t in tokens]
+    for i, word in enumerate(lowered):
+        if word not in BE:
+            continue
+        j = i + 1
+        while j < len(lowered) and j - i <= 2 and (lowered[j] in BETWEEN or lowered[j].endswith("ly")):
+            j += 1
+        if j >= len(lowered):
+            continue
+        verb = lowered[j]
+        regular = len(verb) > 4 and verb.endswith("ed") and not verb.startswith("un")
+        if verb in NOT_PARTICIPLES or not (verb in IRREGULAR or regular):
+            continue
+        if re.search(r"[,;:()]", sentence[tokens[i][2]:tokens[j][1]]):
+            continue
+        by = next((k for k in range(j + 1, min(j + 5, len(lowered))) if lowered[k] == "by"), None)
+        if by is not None and by + 1 < len(lowered) and lowered[by + 1] not in NOT_ACTORS:
+            yield "passive", sentence[tokens[i][1]:tokens[by][2]]
+        else:
+            yield "passive?", sentence[tokens[i][1]:tokens[j][2]]
+
+
+def noun_stacks(sentence: str):
+    """Yield each run of STACK or more words that all look like nouns.
+
+    Capitalized words inside a sentence are names ("Mac Studio GUI Setup"), so
+    they join a run but do not count toward the limit.
+    """
+    run = []
+    first = re.search(r"[A-Za-z]", sentence)
+    first = first.start() if first else 0
+    common = [0]
+
+    def close():
+        found = " ".join(run) if common[0] >= STACK else None
+        del run[:]
+        common[0] = 0
+        return found
+
+    position = 0
+    for match in re.finditer(r"[A-Za-z][A-Za-z'’-]*", sentence):
+        word, lowered = match.group(0), match.group(0).lower()
+        gap = sentence[position:match.start()]
+        position = match.end()
+        nounlike = (
+            lowered not in BREAKERS and word not in (CODE, URL) and len(lowered) > 1
+            and not lowered.endswith(ADJECTIVE_ENDINGS) and "'" not in word and "’" not in word
+        )
+        if run and (gap != " " or not nounlike):
+            found = close()
+            if found:
+                yield found
+        if nounlike and (not run or gap == " "):
+            run.append(word)
+            common[0] += word[0].islower() or match.start() == first
+            plural = lowered.endswith("s") and not lowered.endswith(("ss", "us", "is"))
+            if plural:  # only the last noun of a stack is plural
+                found = close()
+                if found:
+                    yield found
+    found = close()
+    if found:
+        yield found
+
+
+def lint(text: str, phrases):
+    """Return [(lineno, order, kind, message)], findings and warnings together."""
+    out = []
+    for step, parts in blocks(text):
+        limit = STEP_LIMIT if step else LIMIT
+        for number, sentence in sentences(parts):
+            count = len(WORD.findall(sentence))
+            if count > limit:
+                out.append((number, 0, "long-sentence", f"{count} words (limit {limit})"))
+            for pattern, plain in phrases:
+                for match in pattern.finditer(sentence):
+                    advice = f'use "{plain}"' if plain else "cut it or say it plainly"
+                    out.append((number, 1, "stock-phrase", f'"{match.group(0)}" -> {advice}'))
+            for kind, found in passive(sentence):
+                advice = "put the actor first" if kind == "passive" else "fine if the actor is unknown"
+                out.append((number, 2, kind, f'"{found}" -> {advice}'))
+            for found in noun_stacks(sentence):
+                out.append((number, 3, "noun-stack", f'"{found}" ({len(found.split())} nouns in a row; limit 3)'))
+    return sorted(out)
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(prog="prose-lint", description=__doc__.split("\n\n")[0],
+                                     epilog="Run with no arguments to read stdin. Exit 1 when there are findings.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="show findings only, not warnings")
+    parser.add_argument("files", nargs="*", metavar="FILE", help='files to check; "-" or none reads stdin')
+    args = parser.parse_args(argv)
+
+    phrases = load_phrases()
+    findings = warnings = 0
+    for name in args.files or ["-"]:
+        try:
+            text = sys.stdin.read() if name == "-" else Path(name).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as error:
+            print(f"prose-lint: {name}: {error}", file=sys.stderr)
+            return 2
+        for number, order, kind, message in lint(text, phrases):
+            warning = order >= 2
+            findings += not warning
+            warnings += warning
+            if not (warning and args.quiet):
+                print(f"{name}:{number}: {kind}: {message}")
+    if findings or warnings:
+        plural = lambda n, word: f"{n} {word}{'' if n == 1 else 's'}"  # noqa: E731
+        print(f"prose-lint: {plural(findings, 'finding')}, {plural(warnings, 'warning')}", file=sys.stderr)
+    return 1 if findings else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

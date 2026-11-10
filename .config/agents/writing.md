@@ -21,3 +21,5 @@ ASD-STE100 Simplified Technical English (https://asd-ste100.org/), the rules tha
 - Passive only when the actor is unknown
 - Start a warning with a plain command or condition ("Do not run this on prod")
 - Orwell's rule 6 applies to these too
+
+When `prose-lint` is on the PATH, run it on a PR body, a doc or a long message before you send it. Fix its findings. Read its warnings and decide.

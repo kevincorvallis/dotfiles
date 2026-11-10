@@ -12,7 +12,7 @@ Guidance for Claude Code in this repo: Kevin's macOS (Apple Silicon) dotfiles. T
 
 ## Deploy (bootstrap.sh)
 
-An explicit allowlist. Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` and then replaced. Extra files in a destination are never deleted. A file named in `~/.config/dotfiles/skip` is reported as `kept` and never written; an entry that matches no deployed file stops the run before any write (a real run does a dry run of itself first), and `-n` then exits 1.
+An explicit allowlist. Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` and then replaced. Extra files in a destination are never deleted. A file named in `~/.config/dotfiles/skip` is reported as `kept` and never written. An entry that matches no deployed file stops the run before any write. To do that, a real run does a dry run of itself first. `-n` then exits 1.
 
 - `.zshrc .exports .aliases .functions .gitconfig .gitignore .vimrc .vim/ .tmux.conf .curlrc .hushlogin .inputrc` go to `~/`.
 - `bin/*` goes to `~/bin/` and is made executable.

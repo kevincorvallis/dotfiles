@@ -22,7 +22,7 @@ Keep the clone at `~/code/personal/dotfiles`: `$DOTFILES` and the `edit` alias d
 | Repo path | Deployed to |
 |---|---|
 | `.zshrc` `.exports` `.aliases` `.functions` `.gitconfig` `.gitignore` `.vimrc` `.vim/` `.tmux.conf` `.curlrc` `.inputrc` `.hushlogin` | `~/` |
-| `bin/` (cheatsheet, cross-review, disk-clean, finder-favorites, obsidian-sync) | `~/bin/` |
+| `bin/` (agent-sessions, cheatsheet, cross-review, disk-clean, finder-favorites, obsidian-sync, prose-lint) | `~/bin/` |
 | `.config/ghostty/config`, plus `hosts/<LocalHostName>` if it exists | `~/Library/Application Support/com.mitchellh.ghostty/config` |
 | `.config/aerospace/`, `.config/starship/`, `.config/atuin/` | `~/.config/…` |
 | `.config/karabiner/karabiner.json` (only if absent: Karabiner rewrites it) | `~/.config/karabiner/` |
@@ -48,7 +48,18 @@ bash bootstrap.sh [-f|--force] [-n|--dry-run] [--launchagents] [-h|--help]
 
 Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` before the repo copy goes in. Files that are not in the repo are never deleted. On a Mac that already has config, run `-n` first and read the list.
 
-To keep a file as it is on one Mac, list it in `~/.config/dotfiles/skip`: one path under `~` per line (`~/path`, `$HOME/path`, an absolute path or `path`); a line that starts with `#` is a comment. Bootstrap reports each listed file as `kept` and never writes it. An entry that matches no file bootstrap deploys (a typo, a folder, the wrong case) stops the run before anything is written, and `-n` then exits 1. A Mac set up by the old rsync bootstrap needs a few steps before its first run; see [SETUP.md](SETUP.md#existing-mac-set-up-by-the-old-rsync-bootstrap).
+To keep a file as it is on one Mac, list it in `~/.config/dotfiles/skip`. Write one path under `~` per line: `~/path`, `$HOME/path`, an absolute path or `path`. A line that starts with `#` is a comment. Bootstrap reports each listed file as `kept` and never writes it. An entry that matches no file bootstrap deploys stops the run before anything is written. That covers a typo, a folder and the wrong case. `-n` then exits 1. A Mac set up by the old rsync bootstrap needs a few steps before its first run; see [SETUP.md](SETUP.md#existing-mac-set-up-by-the-old-rsync-bootstrap).
+
+## prose-lint
+
+`prose-lint [-q] [FILE ...]` checks Markdown or plain text against the measurable writing rules in `.config/agents/writing.md`. With no file, it reads stdin.
+
+- Findings exit 1: a sentence over 25 words (20 in a numbered step), or a stock phrase.
+- Warnings exit 0: passive voice, and four or more nouns in a row. They are guesses, so read each one; `-q` hides them.
+- YAML frontmatter, code, tables, headings, HTML and URLs are not checked.
+- Private phrases go in `~/.config/prose-lint/phrases.txt`, one per line, as `phrase` or `phrase => plain word`.
+
+It needs only python3 and runs on the macOS system Python. It reports and never blocks anything.
 
 ## Thanos
 
