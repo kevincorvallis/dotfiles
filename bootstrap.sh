@@ -2,6 +2,7 @@
 # bootstrap.sh — copy this repo's dotfiles into $HOME using an explicit allowlist.
 # Files that already match are left alone; files that differ are backed up to
 # ~/.dotfiles-backup/<timestamp>/ before they are replaced. Safe to re-run.
+# Files named in ~/.config/dotfiles/skip are kept as they are on this Mac.
 # Must stay compatible with macOS /bin/bash 3.2 (it runs before Homebrew).
 
 set -euo pipefail
@@ -15,7 +16,11 @@ usage() {
 		'  -f, --force      Do not ask for confirmation.' \
 		'  -n, --dry-run    Show what would change (a drift report). Writes nothing.' \
 		'  --launchagents   Also install launchagents/*.plist into ~/Library/LaunchAgents and load them.' \
-		'  -h, --help       Show this help.'
+		'  -h, --help       Show this help.' \
+		'' \
+		'To keep a file as it is on this Mac, list it in ~/.config/dotfiles/skip: one path' \
+		'under ~ per line ("~/path" or "path"); lines that start with "#" are comments.' \
+		'An entry that matches no file bootstrap deploys stops the run.'
 }
 
 FORCE=0 DRY=0 AGENTS=0
@@ -55,6 +60,27 @@ N_NEW=0 N_UPD=0 N_SAME=0 N_DRIFT=0 N_SKIP=0
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
+# Per-Mac skip list (untracked; bootstrap only reads it). It names files under ~
+# that this Mac keeps as they are: one per line, written as "~/path", "$HOME/path"
+# or "path". Lines that start with "#" are comments.
+SKIP_FILE="$HOME/.config/dotfiles/skip"
+KEPT=0 N_KEPT=0 N_MISS=0
+: > "$TMP/skip"
+: > "$TMP/skip.hit"
+if [ -f "$SKIP_FILE" ]; then
+	while IFS= read -r line || [ -n "$line" ]; do
+		line="${line#"${line%%[![:space:]]*}"}"
+		line="${line%"${line##*[![:space:]]}"}"
+		case "$line" in
+			'' | '#'*) continue ;;
+		esac
+		line="${line#\~/}"
+		line="${line#\$HOME/}"
+		line="${line#"$HOME"/}"
+		printf '%s\n' "$line" >> "$TMP/skip"
+	done < "$SKIP_FILE"
+fi
+
 # The "~/" printed below is display text, not a path to expand.
 # shellcheck disable=SC2088
 pretty() {
@@ -70,13 +96,30 @@ skip() {
 	N_SKIP=$((N_SKIP + 1))
 }
 
+# kept DST — true when DST is in the skip list. Reports it and records the match.
+kept() {
+	local rel=${1#"$HOME"/}
+	if [ -s "$TMP/skip" ] && grep -qxF -- "$rel" "$TMP/skip"; then
+		printf '%s\n' "$rel" >> "$TMP/skip.hit"
+		say "kept" "$(pretty "$1") (in the skip list)"
+		N_KEPT=$((N_KEPT + 1))
+		return 0
+	fi
+	return 1
+}
+
 # install_file SRC DST [x]
 # Copy SRC to DST unless identical. An existing DST that differs (file, symlink or
 # directory) is moved into BACKUP_DIR first, so nothing is lost and no symlink is
 # written through. "x" makes DST executable. Sets CHANGED=1 when DST was written.
+# A DST named in the skip list is left alone, whatever it holds; that sets KEPT=1.
 install_file() {
 	local src=$1 dst=$2 exe=${3:-} bak
-	CHANGED=0
+	CHANGED=0 KEPT=0
+	if kept "$dst"; then
+		KEPT=1
+		return 0
+	fi
 	if [ -f "$dst" ] && cmp -s "$src" "$dst"; then
 		say "unchanged" "$(pretty "$dst")"
 		N_SAME=$((N_SAME + 1))
@@ -173,6 +216,26 @@ deploy_built() {
 	install_file "$TMP/built" "$2"
 }
 
+# ---------- skip list guard ----------
+# An entry that matches no file bootstrap deploys (a typo, a folder, the wrong
+# case) would leave that file unprotected. So a real run first does a dry run of
+# itself, and stops before it writes anything if any entry matched nothing.
+if [ "$DRY" = 0 ] && [ -s "$TMP/skip" ]; then
+	set -- -n
+	if [ "$AGENTS" = 1 ]; then
+		set -- -n --launchagents
+	fi
+	if ! "$BASH" "$REPO/bootstrap.sh" "$@" > "$TMP/guard" 2>&1; then
+		if grep 'no match' "$TMP/guard"; then
+			echo "Stopped: fix $(pretty "$SKIP_FILE") first. Nothing was written."
+		else
+			cat "$TMP/guard"
+			echo "Stopped: the dry run that checks the skip list failed. Nothing was written."
+		fi
+		exit 1
+	fi
+fi
+
 # ---------- deploy ----------
 if [ "$DRY" = 1 ]; then
 	echo "Dry run: nothing will be written."
@@ -212,6 +275,8 @@ k_src=.config/karabiner/karabiner.json
 k_dst="$HOME/.config/karabiner/karabiner.json"
 if [ ! -f "$k_src" ]; then
 	skip "$k_src"
+elif kept "$k_dst"; then
+	:
 elif [ -e "$k_dst" ] && ! cmp -s "$k_src" "$k_dst"; then
 	say "drift" "$(pretty "$k_dst") differs from the repo; left alone (Karabiner owns it)."
 	say "" "To take the repo copy: cp '$REPO/$k_src' ~/.config/karabiner/"
@@ -271,6 +336,12 @@ install_tree .config/mcp "$HOME/.local/share/mcp"
 section "LaunchAgents"
 if [ "$AGENTS" = 0 ]; then
 	say "not loaded" "pass --launchagents to install launchagents/*.plist"
+	# This run deploys no launch agent, but a skip list entry for one is still valid.
+	for p in launchagents/*.plist; do
+		if [ -f "$p" ]; then
+			printf 'Library/LaunchAgents/%s\n' "$(basename "$p")" >> "$TMP/skip.hit"
+		fi
+	done
 elif [ ! -d launchagents ]; then
 	skip "launchagents/"
 else
@@ -284,7 +355,7 @@ else
 		dst="$HOME/Library/LaunchAgents/$name"
 		sed "s|__HOME__|$HOME|g" "$p" > "$TMP/$name"
 		install_file "$TMP/$name" "$dst"
-		if [ "$DRY" = 1 ]; then
+		if [ "$DRY" = 1 ] || [ "$KEPT" = 1 ]; then
 			continue
 		fi
 		if [ "$CHANGED" = 1 ] || ! launchctl print "gui/$uid/$label" > /dev/null 2>&1; then
@@ -300,12 +371,32 @@ else
 fi
 
 # ---------- summary ----------
+# Skip list entries that matched no file bootstrap deploys.
+if [ -s "$TMP/skip" ]; then
+	while IFS= read -r p; do
+		if ! grep -qxF -- "$p" "$TMP/skip.hit"; then
+			say "no match" "$(pretty "$HOME/$p") is in the skip list, but bootstrap deploys no such file"
+			N_MISS=$((N_MISS + 1))
+		fi
+	done < "$TMP/skip"
+fi
+KEPT_NOTE=""
+if [ "$N_KEPT" -gt 0 ]; then
+	KEPT_NOTE=", $N_KEPT kept (skip list)"
+fi
 echo
 if [ "$DRY" = 1 ]; then
-	echo "Dry run: $((N_NEW + N_UPD)) would change ($N_NEW new, $N_UPD differ), $N_SAME unchanged, $N_DRIFT drift, $N_SKIP skipped. Nothing was written."
+	echo "Dry run: $((N_NEW + N_UPD)) would change ($N_NEW new, $N_UPD differ), $N_SAME unchanged, $N_DRIFT drift, $N_SKIP skipped$KEPT_NOTE. Nothing was written."
+	if [ "$N_MISS" -gt 0 ]; then
+		echo "$N_MISS skip list entries match nothing. Fix $(pretty "$SKIP_FILE"); a real run stops until they match."
+		exit 1
+	fi
 	exit 0
 fi
-echo "Done: $N_NEW installed, $N_UPD replaced, $N_SAME unchanged, $N_DRIFT drift, $N_SKIP skipped."
+if [ "$N_MISS" -gt 0 ]; then
+	FAILED=1
+fi
+echo "Done: $N_NEW installed, $N_UPD replaced, $N_SAME unchanged, $N_DRIFT drift, $N_SKIP skipped$KEPT_NOTE."
 if [ "$BACKED_UP" = 1 ]; then
 	echo "Previous versions of replaced files: $(pretty "$BACKUP_DIR")"
 fi

@@ -46,7 +46,9 @@ bash bootstrap.sh [-f|--force] [-n|--dry-run] [--launchagents] [-h|--help]
   --launchagents   Also install launchagents/*.plist into ~/Library/LaunchAgents and load them.
 ```
 
-Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` before the repo copy goes in. Files that are not in the repo are never deleted. On a Mac that already has config, run `-n` first and read the list. A Mac set up by the old rsync bootstrap needs a few steps before its first run; see [SETUP.md](SETUP.md#existing-mac-set-up-by-the-old-rsync-bootstrap).
+Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` before the repo copy goes in. Files that are not in the repo are never deleted. On a Mac that already has config, run `-n` first and read the list.
+
+To keep a file as it is on one Mac, list it in `~/.config/dotfiles/skip`: one path under `~` per line (`~/path`, `$HOME/path`, an absolute path or `path`); a line that starts with `#` is a comment. Bootstrap reports each listed file as `kept` and never writes it. An entry that matches no file bootstrap deploys (a typo, a folder, the wrong case) stops the run before anything is written, and `-n` then exits 1. A Mac set up by the old rsync bootstrap needs a few steps before its first run; see [SETUP.md](SETUP.md#existing-mac-set-up-by-the-old-rsync-bootstrap).
 
 ## Thanos
 

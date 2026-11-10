@@ -12,7 +12,7 @@ Guidance for Claude Code in this repo: Kevin's macOS (Apple Silicon) dotfiles. T
 
 ## Deploy (bootstrap.sh)
 
-An explicit allowlist. Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` and then replaced. Extra files in a destination are never deleted.
+An explicit allowlist. Identical files are left alone. A file that differs is moved to `~/.dotfiles-backup/<timestamp>/` and then replaced. Extra files in a destination are never deleted. A file named in `~/.config/dotfiles/skip` is reported as `kept` and never written; an entry that matches no deployed file stops the run before any write (a real run does a dry run of itself first), and `-n` then exits 1.
 
 - `.zshrc .exports .aliases .functions .gitconfig .gitignore .vimrc .vim/ .tmux.conf .curlrc .hushlogin .inputrc` go to `~/`.
 - `bin/*` goes to `~/bin/` and is made executable.
@@ -46,6 +46,7 @@ To add a deployed path, update `bootstrap.sh`, `deploy_map()` in `scripts/check.
 - espanso `match/private.yml` (template `match/private.yml.example`): identity snippets, and any machine-only triggers.
 - `~/.mcp.json` (from `.config/mcp/mcp.json.example`) and `~/.claude/settings.local.json`.
 - `~/.claude/CLAUDE.local.md` and `~/.codex/AGENTS.local.md`: agent rules for this Mac only, such as work rules or notes on other machines. Bootstrap reads them and appends them to the built file.
+- `~/.config/dotfiles/skip`: files under `~` that this Mac keeps as they are, one path per line. Use it for a file with no overlay of its own, such as a `settings.json` that a managed tool edits.
 
 ## Rules
 

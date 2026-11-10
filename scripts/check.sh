@@ -515,6 +515,7 @@ launchagents
 .extra
 .extra.example
 .config/agents
+.config/dotfiles
 .claude/settings.local.json
 .claude/CLAUDE.local.md
 .codex/AGENTS.local.md
@@ -523,7 +524,7 @@ Library/LaunchAgents'
 GHOSTTY_DST='Library/Application Support/com.mitchellh.ghostty/config'
 
 bootstrap_checks() {
-	local H1="$T/home1" H2="$T/home2" p f d rc n bad host
+	local H1="$T/home1" H2="$T/home2" p f d rc n bad host sub rc1 rc2
 	mkdir -p "$H1" "$H2"
 
 	# --- every include in a built file resolves (a missing one aborts bootstrap) ---
@@ -776,6 +777,116 @@ bootstrap_checks() {
 		done
 		if [ "$bad" = 0 ]; then pass "machine-local overlays (CLAUDE.local.md, AGENTS.local.md) appended and left alone"; fi
 	fi
+
+	# --- per-Mac skip list: listed files are kept; the rest is still deployed ---
+	sub='Library/Application Support/Sublime Text/Packages/User/Preferences.sublime-settings'
+	mkdir -p "$H1/.config/dotfiles"
+	{
+		echo '# files this Mac keeps'
+		echo ''
+		printf '%s/.tmux.conf\n' '~'
+		echo '.claude/settings.json'
+		echo "  $sub  "
+		echo "\$HOME/.inputrc"
+		echo "$H1/.vimrc"
+		# deployed only sometimes: karabiner.json when absent, launch agents with --launchagents
+		printf '%s/.config/karabiner/karabiner.json\n' '~'
+		printf '%s/Library/LaunchAgents/com.kevincorvallis.disk-clean.plist\n' '~'
+	} > "$H1/.config/dotfiles/skip"
+	cp "$H1/.config/dotfiles/skip" "$T/skip.want"
+	for p in .tmux.conf .claude/settings.json "$sub" .inputrc .vimrc .curlrc; do
+		printf '\n# local\n' >> "$H1/$p"
+	done
+	cp "$H1/.tmux.conf" "$T/keep.1"
+	cp "$H1/.claude/settings.json" "$T/keep.2"
+	cp "$H1/$sub" "$T/keep.3"
+	cp "$H1/.inputrc" "$T/keep.4"
+	cp "$H1/.vimrc" "$T/keep.5"
+	cp "$H1/.config/karabiner/karabiner.json" "$T/keep.6"
+	snapshot "$H1" "$T/snap5"
+	bad=0
+	if ! run_bootstrap "$H1" "$T/skip-dry.log" -n; then
+		bad=1
+		fail "bootstrap.sh -n with a skip list exited non-zero"
+		indent "$T/skip-dry.log"
+	else
+		snapshot "$H1" "$T/snap6"
+		if ! cmp -s "$T/snap5" "$T/snap6"; then
+			bad=1
+			fail "bootstrap.sh -n with a skip list modified HOME"
+		elif [ "$(grep -c '^  kept ' "$T/skip-dry.log")" != 6 ]; then
+			bad=1
+			fail "bootstrap.sh -n did not report the 6 skip list files it deploys as kept"
+			indent "$T/skip-dry.log"
+		elif ! grep 'curlrc' "$T/skip-dry.log" | grep would-change > /dev/null; then
+			bad=1
+			fail "bootstrap.sh -n with a skip list did not report a drifted file outside the list"
+		fi
+	fi
+	if ! run_bootstrap "$H1" "$T/skip.log" -f; then
+		bad=1
+		fail "bootstrap.sh -f with a skip list exited non-zero"
+		indent "$T/skip.log"
+	else
+		n=0
+		for p in .tmux.conf .claude/settings.json "$sub" .inputrc .vimrc .config/karabiner/karabiner.json; do
+			n=$((n + 1))
+			if ! cmp -s "$T/keep.$n" "$H1/$p"; then
+				bad=1
+				fail "bootstrap replaced a file named in the skip list: $p"
+			fi
+		done
+		if ! cmp -s .curlrc "$H1/.curlrc"; then
+			bad=1
+			fail "a drifted file outside the skip list was not restored: .curlrc"
+		fi
+		if ! cmp -s "$T/skip.want" "$H1/.config/dotfiles/skip"; then
+			bad=1
+			fail "bootstrap changed the skip list file"
+		fi
+	fi
+	if [ "$bad" = 0 ]; then pass "skip list: 6 listed files kept (~/, \$HOME/, absolute, bare and spaced paths; karabiner.json); a launch agent entry is accepted; the rest still deployed"; fi
+
+	# --- skip list guard: an entry that matches nothing stops the run before any write ---
+	bad=0
+	for p in .no-such-file .claude .TMUX.conf; do
+		{
+			cat "$T/skip.want"
+			printf '%s/%s\n' '~' "$p"
+		} > "$H1/.config/dotfiles/skip"
+		printf '\n# local\n' >> "$H1/.curlrc" # drift outside the list: a run that goes ahead would restore it
+		snapshot "$H1" "$T/snap7"
+		run_bootstrap "$H1" "$T/skip-miss-dry.log" -n
+		rc1=$?
+		run_bootstrap "$H1" "$T/skip-miss.log" -f
+		rc2=$?
+		snapshot "$H1" "$T/snap8"
+		if [ "$rc1" = 0 ] || [ "$rc2" = 0 ]; then
+			bad=1
+			fail "skip list entry '$p' matches nothing, but bootstrap did not stop (-n exit $rc1, -f exit $rc2)"
+		elif ! cmp -s "$T/snap7" "$T/snap8"; then
+			bad=1
+			fail "bootstrap wrote to HOME although skip list entry '$p' matches nothing"
+		elif ! grep 'no match' "$T/skip-miss.log" | grep -F -- "$p" > /dev/null; then
+			bad=1
+			fail "bootstrap did not name the skip list entry that matches nothing: $p"
+		fi
+	done
+	if [ "$bad" = 0 ]; then pass "skip list guard: a typo, a folder and a wrong-case entry each stop the run; nothing written"; fi
+
+	# --- a list with only comments keeps nothing and does not stop the run ---
+	printf '%s\n' '# nothing is kept on this Mac' '' > "$H1/.config/dotfiles/skip"
+	if ! run_bootstrap "$H1" "$T/skip-empty.log" -f; then
+		fail "bootstrap.sh -f with a comments-only skip list exited non-zero"
+		indent "$T/skip-empty.log"
+	elif grep '^  kept ' "$T/skip-empty.log" > /dev/null; then
+		fail "bootstrap kept files although the skip list has only comments"
+	elif ! cmp -s .tmux.conf "$H1/.tmux.conf"; then
+		fail "a file dropped from the skip list was not restored: .tmux.conf"
+	else
+		pass "skip list: a comments-only list keeps nothing; a file dropped from the list is deployed again"
+	fi
+	rm -f "$H1/.config/dotfiles/skip"
 
 	# --- a fresh interactive zsh starts clean (fixed TERM: the caller's may be dumb or unset) ---
 	if have zsh; then
