@@ -1,11 +1,11 @@
 ---
 name: thanos
-description: Use Claude and Gemini 4 Argon through Cursor for cross-model UI critique, planning, design, code review, or adversarial analysis when requested. Do not activate for an ordinary single-model review.
+description: Use Claude Fable 5.2 and Gemini 4 Carbon through Cursor for cross-model UI critique, planning, design, code review, or adversarial analysis when requested. Do not activate for an ordinary single-model review.
 ---
 
 # Thanos
 
-Use `~/bin/cross-review` to send one frozen brief to independent Claude and Gemini reviewers, then assess their findings and optional reconciliation. Defaults are **Claude Opus 5.5** (`claude-opus-5-5-medium`) and **Gemini 4 Argon** (`gemini-4-argon-high`). Preserve explicitly requested models; never silently substitute.
+Use `~/bin/cross-review` to send one frozen brief to two independent advisors, then assess their findings and optional reconciliation. Defaults are **Claude Fable 5.2** (`claude-fable-5-2-high`) and **Gemini 4 Carbon** (`gemini-4-carbon-high`), both with high reasoning effort. Preserve explicitly requested models; never silently substitute.
 
 Invoking this skill or requesting cross-model analysis authorizes sending the relevant brief through Cursor to those models. It does not authorize unrelated uploads, publishing, messaging people, or implementation. Existing authorization to build or fix something still applies.
 
@@ -44,7 +44,7 @@ Check `~/bin/cross-review run --help` for the installed interface and `~/bin/cro
 
 ```sh
 ~/bin/cross-review run "$brief_file" --mode "$mode" \
-  --claude-model claude-opus-5-5-medium --gemini-model gemini-4-argon-high
+  --claude-model claude-fable-5-2-high --gemini-model gemini-4-carbon-high
 ```
 
 Replace the explicit model IDs above when the user requests different available models. Supported options include `--output DIR`, `--timeout seconds`, `--no-reconcile`, and `--dry-run`. Keep outputs outside the repository too. A dry run is a preparation check, not a model review. The runner requests Cursor's ask mode, sandboxing and project-level tool denials. Inspect the manifest's startup/global configuration limitations; these controls are not proof of complete process isolation. Do not give reviewers edit, shell, or unrelated tool permissions to work around a failure.

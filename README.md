@@ -107,7 +107,7 @@ To run an existing brief directly:
 ~/bin/cross-review run /path/to/private/brief.md --mode planning
 ```
 
-The defaults are `claude-opus-5-5-medium` and `gemini-4-argon-high`. To choose other
+The defaults are `claude-fable-5-2-high` and `gemini-4-carbon-high`. To choose other
 models, list the current catalogue with `~/bin/cross-review models`, then pass exact
 IDs using `--claude-model ID` and `--gemini-model ID`. The runner never substitutes models.
 `--dry-run` prepares a run without sending the brief; `--no-reconcile` keeps only the

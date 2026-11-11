@@ -20,8 +20,8 @@ import time
 import uuid
 
 
-DEFAULT_CLAUDE = "claude-opus-5-5-medium"
-DEFAULT_GEMINI = "gemini-4-argon-high"
+DEFAULT_CLAUDE = "claude-fable-5-2-high"
+DEFAULT_GEMINI = "gemini-4-carbon-high"
 SCHEMA_VERSION = 1
 REVIEW_MODES = {
     "design": """Assess the proposed design's architecture, interfaces, invariants, tradeoffs,
