@@ -1,6 +1,6 @@
 Summon both external vendors on a **question**: send the prompt to Gemini and GPT in parallel (one round, inline, no subagents), then synthesize with Claude's own take. Depends only on the global `gemini` + `codex` MCP servers.
 
-**Boundary vs `/gauntlet`**: `/thanos` is for questions where a wrong answer is recoverable — second opinions, tradeoffs, "am I missing anything?", naming, library/strategy choices, small snippets (≲500 tokens of context). It NEVER escalates: no crossfire, no subagents, no follow-up rounds. If there's a concrete artifact whose defects are costly (diff, design, migration, prod change), stop and suggest `/gauntlet` instead.
+**Boundary vs `/gauntlet`**: `/thanos` is for questions where a wrong answer is recoverable — second opinions, tradeoffs, "am I missing anything?", naming, library/strategy choices, small snippets (≲500 tokens of context). It never escalates on its own: no crossfire, no subagents, and no second round unless the user asks for one (see Follow-ups). If there's a concrete artifact whose defects are costly (diff, design, migration, prod change), stop and suggest `/gauntlet` instead.
 
 ## Panel
 
@@ -10,7 +10,8 @@ Gemini via `mcp__gemini__ask_gemini` (`latest` = `gemini-3.8-flash` default, `sm
 
 ## Rules
 
-- Both tools are stateless — embed FULL context in each prompt (paste file contents/error text, never a bare path or PR number).
+- Round 1 starts with no history — embed FULL context in each prompt (paste file contents/error text, never a bare path or PR number).
+- Pass both tools a `thread_id` (`thanos-<topic>`; in `wide`, one per framing: `thanos-<topic>-a`, `-b`) so each vendor remembers its answer. A Round 1 reply headed `turn 2` or higher means the name is taken — pick a new one and ask again.
 - Send both calls in ONE message so they run in parallel.
 - Ask each vendor for a **direct answer in ≤10 bullets/short paragraphs, uncertainty flagged** — no essays. Verbosity is the main token leak here.
 - Never send secrets/tokens or internal diagram source to external models.
@@ -36,3 +37,12 @@ Same prompt to both vendors, straight framing (not adversarial): best direct ans
 - **Unique** — one source only: keep if verified, else mark unverified. Novel points deserve attention, not discounting.
 
 Output: consensus answer first, then a short divergence table (`Point | Gemini | GPT | Claude ruling`) only if there were disagreements. Inline only — no files, no Slack/Jira posts unless explicitly asked.
+
+## Follow-ups (only when the user asks)
+
+When the user pushes back or asks more, continue the Round 1 threads:
+
+- Send only the new message, on the same `thread_id`, to the vendor it concerns (both in ONE message if it concerns both).
+- To have one vendor answer the other's point, quote the point without its source ("A reviewer said: ...").
+- A reply headed `turn 1` means the server lost the thread — resend the context.
+- One exchange per user message, then report what changed. Never start an exchange yourself.

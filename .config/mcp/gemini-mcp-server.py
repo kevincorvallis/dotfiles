@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
 
 import anyio.to_thread
 
@@ -88,9 +89,27 @@ def _client(location: str):
     return _clients[key]
 
 
+# Thread memory: a caller-chosen thread_id maps to the turns so far, in the
+# SDK's dict form of Content. It lives in this process only, so a thread ends
+# when Claude Code restarts the server. One lock per thread keeps parallel
+# calls on the same thread in order.
+_threads: dict[str, list[dict]] = {}
+_thread_locks: dict[str, threading.Lock] = {}
+_registry_lock = threading.Lock()
+
+
+def _thread_lock(thread_id: str) -> threading.Lock:
+    with _registry_lock:
+        return _thread_locks.setdefault(thread_id, threading.Lock())
+
+
+def _turn(role: str, text: str) -> dict:
+    return {"role": role, "parts": [{"text": text}]}
+
+
 def _generate(
     model: str,
-    prompt: str,
+    contents: str | list[dict],
     max_output_tokens: int,
     temperature: float,
     timeout_s: float,
@@ -101,7 +120,7 @@ def _generate(
     location = "global" if model in GLOBAL_MODELS else "us-central1"
     resp = _client(location).models.generate_content(
         model=model,
-        contents=prompt,
+        contents=contents,
         config=types.GenerateContentConfig(
             max_output_tokens=max_output_tokens,
             temperature=temperature,
@@ -120,12 +139,15 @@ async def ask_gemini(
     max_output_tokens: int = 8192,
     temperature: float = 0.7,
     timeout_s: float = 90.0,
+    thread_id: str = "",
 ) -> str:
     """Ask Gemini a question (Gemini Developer API key or Vertex AI).
 
     Use this to get a second opinion, a pedagogical explanation, or a
-    differently-trained perspective on a problem. Pass a fully-formed prompt;
-    no chat history is preserved between calls.
+    differently-trained perspective on a problem. Without thread_id each call
+    stands alone: pass a fully-formed prompt, because no chat history is kept.
+    With thread_id, Gemini sees the earlier turns of that thread, so a
+    follow-up needs only the new message.
 
     If the requested model errors, times out, or returns an empty response,
     the call automatically falls back to the GA-tier models (2.5-pro/flash)
@@ -144,6 +166,11 @@ async def ask_gemini(
         temperature: 0.0 deterministic, 1.0 creative. Default 0.7.
         timeout_s: Per-attempt HTTP timeout in seconds. Each fallback attempt
             gets the same budget.
+        thread_id: Optional name for a conversation; any string you choose.
+            Calls that share it share history, kept in this server's memory
+            until Claude Code restarts. The reply then starts with
+            "[thread: <name>, turn N]". Turn 1 on a follow-up means the
+            history was lost, so send the context again.
 
     Returns:
         The model's text response (prefixed with a [fallback: ...] note when a
@@ -152,7 +179,7 @@ async def ask_gemini(
     # FastMCP runs sync tools on the event loop, so concurrent calls would
     # serialize behind one blocking HTTP request; offload to a thread.
     return await anyio.to_thread.run_sync(
-        _ask_gemini_sync, prompt, model, max_output_tokens, temperature, timeout_s
+        _ask_gemini_sync, prompt, model, max_output_tokens, temperature, timeout_s, thread_id
     )
 
 
@@ -162,23 +189,46 @@ def _ask_gemini_sync(
     max_output_tokens: int,
     temperature: float,
     timeout_s: float,
+    thread_id: str,
 ) -> str:
     if not API_KEY and not PROJECT:
         return AUTH_ERROR
     if model not in ALLOWED:
         return f"ERROR: model {model!r} not allowed. Choose from {sorted(ALLOWED)}."
+    if not thread_id:
+        return _answer(prompt, model, max_output_tokens, temperature, timeout_s)[1]
 
+    with _thread_lock(thread_id):
+        history = _threads.setdefault(thread_id, [])
+        text, reply = _answer(
+            [*history, _turn("user", prompt)], model, max_output_tokens, temperature, timeout_s
+        )
+        if text is None:
+            return reply  # a failed turn is not remembered
+        history += [_turn("user", prompt), _turn("model", text)]
+        return f"[thread: {thread_id}, turn {len(history) // 2}]\n\n{reply}"
+
+
+def _answer(
+    contents: str | list[dict],
+    model: str,
+    max_output_tokens: int,
+    temperature: float,
+    timeout_s: float,
+) -> tuple[str | None, str]:
+    """Walk the fallback chain. Returns (the model's own text, the reply for
+    the caller). The text is None when every model failed."""
     failures: list[str] = []
     for candidate in (model, *FALLBACKS.get(model, ())):
         try:
-            text = _generate(candidate, prompt, max_output_tokens, temperature, timeout_s)
+            text = _generate(candidate, contents, max_output_tokens, temperature, timeout_s)
         except Exception as e:  # noqa: BLE001 -- surface, never crash the server
             failures.append(f"{candidate}: {type(e).__name__}: {e}")
             continue
         if candidate != model:
-            return f"[fallback: {candidate} answered after {'; '.join(failures)}]\n\n{text}"
-        return text
-    return "ERROR: all models failed -- " + " | ".join(failures)
+            return text, f"[fallback: {candidate} answered after {'; '.join(failures)}]\n\n{text}"
+        return text, text
+    return None, "ERROR: all models failed -- " + " | ".join(failures)
 
 
 if __name__ == "__main__":

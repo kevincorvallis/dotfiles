@@ -258,6 +258,18 @@ else
 	indent "$T/err"
 fi
 
+# The MCP thread suite uses a fake Codex CLI and a stand-in Gemini SDK; it must never require network or login.
+if [ ! -f tests/test_mcp_threads.py ]; then
+	fail "mcp threads: offline behavioral test suite missing"
+elif ! have "$py"; then
+	skip "mcp thread tests: python3 not installed"
+elif "$py" -B -I -m unittest discover -s tests -p 'test_mcp_threads.py' > "$T/err" 2>&1; then
+	pass "mcp thread offline behavioral tests"
+else
+	fail "mcp thread offline behavioral tests"
+	indent "$T/err"
+fi
+
 # prose-lint has no dependencies, so it must also run on the macOS system python3 (3.9).
 if [ ! -f tests/test_prose_lint.py ]; then
 	fail "prose-lint: behavioral test suite missing"
