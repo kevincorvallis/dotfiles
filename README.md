@@ -22,7 +22,7 @@ Keep the clone at `~/code/personal/dotfiles`: `$DOTFILES` and the `edit` alias d
 | Repo path | Deployed to |
 |---|---|
 | `.zshrc` `.exports` `.aliases` `.functions` `.gitconfig` `.gitignore` `.vimrc` `.vim/` `.tmux.conf` `.curlrc` `.inputrc` `.hushlogin` | `~/` |
-| `bin/` (agent-sessions, cheatsheet, cross-review, disk-clean, finder-favorites, obsidian-sync, prose-lint) | `~/bin/` |
+| `bin/` (agent-sessions, cheatsheet, cross-review, disk-clean, finder-favorites, harness-repair, obsidian-sync, prose-lint) | `~/bin/` |
 | `.config/ghostty/config`, plus `hosts/<LocalHostName>` if it exists | `~/Library/Application Support/com.mitchellh.ghostty/config` |
 | `.config/aerospace/`, `.config/starship/`, `.config/atuin/` | `~/.config/…` |
 | `.config/karabiner/karabiner.json` (only if absent: Karabiner rewrites it) | `~/.config/karabiner/` |
@@ -60,6 +60,23 @@ To keep a file as it is on one Mac, list it in `~/.config/dotfiles/skip`. Write 
 - Private phrases go in `~/.config/prose-lint/phrases.txt`, one per line, as `phrase` or `phrase => plain word`.
 
 It needs only python3 and runs on the macOS system Python. It reports and never blocks anything.
+
+## harness-repair
+
+`harness-repair` keeps three harness files: `system.md`, `tools.json` and `done.md`. It scores them on a task file, asks a runner for an edit, and keeps the edit only when more train tasks pass. The report prints the held-out score at the end. That score does not pick the winner.
+
+The offline example uses a scripted mock, so it needs no API key. A real run uses `claude`, `codex`, or an API key in `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`. Python 3.9 or newer is enough. There are no extra packages.
+
+```sh
+bin/harness-repair optimize \
+  --harness examples/harness-repair/harness \
+  --tasks examples/harness-repair/tasks.jsonl \
+  --runner command \
+  --runner-cmd "python3 examples/harness-repair/mock_runner.py" \
+  --max-iterations 1
+```
+
+`--dry-run` prints the plan and writes nothing. Usage, the env vars and the limits are in `examples/harness-repair/README.md`. This is not an implementation of the RRSI paper (arXiv:2609.24972).
 
 ## Thanos
 

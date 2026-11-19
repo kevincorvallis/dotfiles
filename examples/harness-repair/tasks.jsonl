@@ -1,0 +1,5 @@
+{"id":"mul","split":"train","prompt":"What is 17 * 3?","expect":"51"}
+{"id":"add","split":"train","prompt":"What is 6 + 7?","expect":"13"}
+{"id":"city","split":"train","prompt":"Read note.txt and answer with the city it names.","expect":"Lyon","files":{"note.txt":"Lyon"}}
+{"id":"div","split":"heldout","prompt":"What is 84 / 4?","expect":"21"}
+{"id":"city2","split":"heldout","prompt":"Open note.txt and report the HELD-CITY in it.","expect":"Oslo","files":{"note.txt":"Oslo"}}

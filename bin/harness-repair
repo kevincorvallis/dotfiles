@@ -1,0 +1,1571 @@
+#!/usr/bin/env python3
+"""Edit an agent harness only when the train score goes up.
+
+A harness is three files: system.md, tools.json and done.md. Tasks are a
+JSONL (or JSON) list with train and heldout splits. The scorer is outside the
+harness. An optimizer may rewrite the three files. An edit is kept only when
+more train tasks pass. The held-out score is reported at the end and is not
+used to accept an edit.
+
+    harness-repair init DIR
+    harness-repair run --harness DIR --tasks FILE --runner command --runner-cmd CMD
+    harness-repair optimize --harness DIR --tasks FILE --runner command --runner-cmd CMD
+
+Runners: command (JSON on stdin), claude (-p), codex (exec), api (OpenAI or
+Anthropic). Keys come from the environment. Nothing in this repo is a secret.
+
+This is a small local loop. It is not Google Cloud AI Research's RRSI
+(arXiv:2609.24972). That paper adds regularizers this tool does not have.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import datetime as dt
+import difflib
+import json
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.error
+import urllib.request
+
+
+FILES = ("system.md", "tools.json", "done.md")
+IMPLS = ("calc", "read_file")
+ANSWER_MARK = "ANSWER:"
+MAX_EXPR = 100
+MAX_READ = 20000
+MAX_FAILS = 8
+SNIP = 1500
+
+# Train answers at least this long are rejected if a proposal newly pastes them
+# into the harness. Short answers are left to the held-out score.
+PASTE_MIN = 4
+
+
+class UsageError(Exception):
+    pass
+
+
+class StopRun(Exception):
+    def __init__(self, reason, code=1):
+        super().__init__(reason)
+        self.reason = reason
+        self.code = code
+
+
+class CallResult(object):
+    def __init__(self, content, tool_calls, usage):
+        self.content = content or ""
+        self.tool_calls = tool_calls or []
+        self.usage = usage or {}
+
+
+class Budget(object):
+    def __init__(self, max_calls, max_cost):
+        self.max_calls = max_calls
+        self.max_cost = max_cost
+        self.calls = 0
+        self.cost = 0.0
+        self.cost_seen = False
+        self.baseline_done = False
+
+    def reserve(self):
+        if self.calls >= self.max_calls:
+            code = 0 if self.baseline_done else 1
+            raise StopRun("call budget reached", code)
+        if self.max_cost is not None and self.cost >= self.max_cost:
+            code = 0 if self.baseline_done else 1
+            raise StopRun("cost budget reached", code)
+        self.calls += 1
+
+    def note_cost(self, usage):
+        amount = None if not usage else usage.get("cost_usd")
+        if self.max_cost is not None and amount is None:
+            raise StopRun(
+                "runner did not report cost_usd, so --max-cost cannot be enforced",
+                1,
+            )
+        if amount is None:
+            return
+        self.cost = round(self.cost + float(amount), 8)
+        self.cost_seen = True
+
+
+def read_text(path):
+    return Path(path).read_text(encoding="utf-8")
+
+
+def write_text(path, text):
+    Path(path).write_text(text, encoding="utf-8")
+
+
+def write_json(path, obj):
+    write_text(path, json.dumps(obj, ensure_ascii=False, indent=2) + "\n")
+
+
+def append_jsonl(path, obj):
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(obj, ensure_ascii=False) + "\n")
+
+
+def example_dirs():
+    found = []
+    env = os.environ.get("HARNESS_REPAIR_EXAMPLES")
+    if env:
+        found.append(Path(env))
+    script_dir = Path(__file__).resolve().parent
+    found.append(script_dir.parent / "examples" / "harness-repair")
+    dotfiles = os.environ.get("DOTFILES")
+    if dotfiles:
+        found.append(Path(dotfiles) / "examples" / "harness-repair")
+    found.append(Path.home() / "code" / "personal" / "dotfiles" / "examples" / "harness-repair")
+    return found
+
+
+def find_examples():
+    for root in example_dirs():
+        if (root / "harness" / "system.md").is_file() and (root / "tasks.jsonl").is_file():
+            return root
+    searched = ", ".join(str(p) for p in example_dirs())
+    raise UsageError("example harness not found. Set HARNESS_REPAIR_EXAMPLES. Looked in: " + searched)
+
+
+def validate_tools(tools):
+    if not isinstance(tools, list):
+        raise ValueError("tools.json must be a JSON list")
+    names = set()
+    for tool in tools:
+        if not isinstance(tool, dict):
+            raise ValueError("each tool must be a JSON object")
+        name = tool.get("name")
+        if not isinstance(name, str) or not name or name in names:
+            raise ValueError("each tool needs a unique string name")
+        names.add(name)
+        if not isinstance(tool.get("description"), str) or not tool["description"].strip():
+            raise ValueError(name + " needs a description")
+        if "parameters" in tool and not isinstance(tool["parameters"], dict):
+            raise ValueError(name + " parameters must be an object")
+        impl = tool.get("impl")
+        if impl is not None and impl not in IMPLS:
+            raise ValueError(name + " impl must be one of: " + ", ".join(IMPLS))
+
+
+def load_harness(path):
+    root = Path(path)
+    if not root.is_dir():
+        raise UsageError("harness directory not found: " + str(root))
+    missing = [name for name in FILES if not (root / name).is_file()]
+    if missing:
+        raise UsageError("harness is missing: " + ", ".join(missing))
+    try:
+        tools = json.loads(read_text(root / "tools.json"))
+        validate_tools(tools)
+    except ValueError as exc:
+        raise UsageError("tools.json: " + str(exc))
+    if not read_text(root / "system.md").strip():
+        raise UsageError("system.md is empty")
+    if not read_text(root / "done.md").strip():
+        raise UsageError("done.md is empty")
+    return root
+
+
+def check_relative(path):
+    if not isinstance(path, str) or not path or path.startswith("/") or "\\" in path:
+        raise UsageError("task file path must be relative: %r" % (path,))
+    if ".." in Path(path).parts:
+        raise UsageError("task file path must stay in the workspace: " + path)
+
+
+def expect_of(task):
+    check = task.get("check") or {}
+    if "expect" in check:
+        return str(check["expect"])
+    return ""
+
+
+def normalize_task(row, index):
+    if not isinstance(row, dict):
+        raise UsageError("task %d is not an object" % index)
+    task_id = row.get("id")
+    if not isinstance(task_id, str) or not task_id:
+        raise UsageError("task %d needs a string id" % index)
+    split = row.get("split", "train")
+    if split not in ("train", "heldout"):
+        raise UsageError("%s split must be train or heldout" % task_id)
+    prompt = row.get("prompt")
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise UsageError("%s needs a prompt" % task_id)
+    files = row.get("files") or {}
+    if not isinstance(files, dict):
+        raise UsageError("%s files must be an object" % task_id)
+    for rel, content in files.items():
+        check_relative(rel)
+        if not isinstance(content, str):
+            raise UsageError("%s file %s must be text" % (task_id, rel))
+    if "check" in row:
+        check = row["check"]
+        if not isinstance(check, dict):
+            raise UsageError("%s check must be an object" % task_id)
+    elif "expect" in row:
+        check = {"type": "answer", "expect": str(row["expect"])}
+    else:
+        raise UsageError("%s needs expect or check" % task_id)
+    kind = check.get("type", "answer")
+    if kind not in ("answer", "contains", "command"):
+        raise UsageError("%s check type must be answer, contains or command" % task_id)
+    if kind in ("answer", "contains") and "expect" not in check:
+        raise UsageError("%s check needs expect" % task_id)
+    if kind == "command":
+        argv = check.get("argv")
+        if not isinstance(argv, list) or not argv or not all(isinstance(x, str) for x in argv):
+            raise UsageError("%s command check needs an argv list of strings" % task_id)
+    return {
+        "id": task_id,
+        "split": split,
+        "prompt": prompt,
+        "files": files,
+        "check": check,
+    }
+
+
+def load_tasks(path):
+    file_path = Path(path)
+    if not file_path.is_file():
+        raise UsageError("tasks file not found: " + str(file_path))
+    raw = read_text(file_path)
+    rows = []
+    if file_path.suffix == ".jsonl":
+        for number, line in enumerate(raw.splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                rows.append(json.loads(line))
+            except ValueError as exc:
+                raise UsageError("%s:%d: %s" % (file_path, number, exc))
+    else:
+        try:
+            rows = json.loads(raw)
+        except ValueError as exc:
+            raise UsageError("tasks JSON: " + str(exc))
+        if not isinstance(rows, list):
+            raise UsageError("tasks JSON must be a list")
+    tasks = []
+    seen = set()
+    for index, row in enumerate(rows, 1):
+        task = normalize_task(row, index)
+        if task["id"] in seen:
+            raise UsageError("duplicate task id: " + task["id"])
+        seen.add(task["id"])
+        tasks.append(task)
+    if not tasks:
+        raise UsageError("no tasks in " + str(file_path))
+    return tasks
+
+
+def assemble_system(harness):
+    tools = json.loads(read_text(Path(harness) / "tools.json"))
+    lines = [read_text(Path(harness) / "system.md").rstrip(), "", "# Tools"]
+    for tool in tools:
+        lines.append("## " + tool["name"])
+        lines.append(tool["description"].rstrip())
+        if tool.get("parameters"):
+            lines.append("Parameters: " + json.dumps(tool["parameters"], ensure_ascii=False))
+        lines.append("")
+    lines.append("# When you are done")
+    lines.append(read_text(Path(harness) / "done.md").rstrip())
+    return "\n".join(lines).rstrip() + "\n", tools
+
+
+def public_tool(tool):
+    item = {
+        "name": tool["name"],
+        "description": tool["description"],
+    }
+    if tool.get("parameters"):
+        item["parameters"] = tool["parameters"]
+    return item
+
+
+def task_user(task):
+    text = task["prompt"].rstrip()
+    if task["files"]:
+        names = ", ".join(sorted(task["files"]))
+        text += "\n\nWorkspace files: " + names + ". Read them with the read_file tool."
+    return text
+
+
+def extract_answer(text):
+    found = []
+    for line in (text or "").splitlines():
+        stripped = line.strip()
+        if stripped.startswith(ANSWER_MARK):
+            found.append(stripped[len(ANSWER_MARK):].strip())
+    if found:
+        return found[-1]
+    lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
+def format_number(value):
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def eval_arith(expr):
+    if not isinstance(expr, str) or not expr.strip():
+        raise ValueError("expression is empty")
+    if len(expr) > MAX_EXPR:
+        raise ValueError("expression is too long")
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError("expression is not arithmetic") from exc
+    return format_number(_eval_node(tree.body))
+
+
+def _eval_node(node):
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
+        return node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        value = _eval_node(node.operand)
+        return value if isinstance(node.op, ast.UAdd) else -value
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+        left = _eval_node(node.left)
+        right = _eval_node(node.right)
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if right == 0:
+            raise ValueError("division by zero")
+        return left / right
+    raise ValueError("only numbers and + - * / are allowed")
+
+
+def impl_calc(args, workspace):
+    del workspace
+    if not isinstance(args, dict):
+        raise ValueError("calc arguments must be an object")
+    return eval_arith(args.get("expression"))
+
+
+def impl_read_file(args, workspace):
+    if not isinstance(args, dict):
+        raise ValueError("read_file arguments must be an object")
+    if workspace is None:
+        raise ValueError("this task has no workspace")
+    rel = args.get("path")
+    check_relative(rel)
+    root = Path(workspace).resolve()
+    path = (root / rel).resolve()
+    if path != root and root not in path.parents:
+        raise ValueError("path escapes the workspace")
+    if not path.is_file():
+        raise ValueError("not a file: " + rel)
+    data = path.read_text(encoding="utf-8")
+    if len(data) > MAX_READ:
+        return data[:MAX_READ] + "\n...[truncated]"
+    return data
+
+
+IMPL_FNS = {"calc": impl_calc, "read_file": impl_read_file}
+
+
+def dispatch_tool(tools, call, workspace):
+    name = call.get("name")
+    spec = None
+    for tool in tools:
+        if tool.get("name") == name:
+            spec = tool
+            break
+    if spec is None:
+        raise ValueError("unknown tool: %s" % name)
+    impl = spec.get("impl")
+    if not impl:
+        raise ValueError("tool has no local impl: %s" % name)
+    fn = IMPL_FNS.get(impl)
+    if fn is None:
+        raise ValueError("impl is not allowed: %s" % impl)
+    args = call.get("arguments") or {}
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except ValueError as exc:
+            raise ValueError("tool arguments are not JSON") from exc
+    return fn(args, workspace)
+
+
+def make_workspace(task, root):
+    workspace = Path(root) / task["id"]
+    workspace.mkdir(parents=True, exist_ok=True)
+    for rel, content in task["files"].items():
+        dest = workspace / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        write_text(dest, content)
+    return workspace
+
+
+def grade(task, answer_text, workspace):
+    check = task["check"]
+    kind = check.get("type", "answer")
+    if kind == "answer":
+        got = extract_answer(answer_text)
+        return got == str(check["expect"]).strip(), got, ""
+    if kind == "contains":
+        expect = str(check["expect"])
+        return expect in (answer_text or ""), answer_text or "", ""
+    answer_path = Path(workspace) / "answer.txt"
+    write_text(answer_path, answer_text or "")
+    try:
+        proc = subprocess.run(
+            check["argv"],
+            cwd=str(workspace),
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except subprocess.TimeoutExpired:
+        return False, answer_text or "", "command check timed out"
+    except OSError as exc:
+        return False, answer_text or "", "command check failed to start: " + str(exc)
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or "").strip()
+        return False, answer_text or "", "command check exited %d: %s" % (proc.returncode, err[:300])
+    return True, answer_text or "", ""
+
+
+def snip(text):
+    text = text or ""
+    if len(text) <= SNIP:
+        return text
+    return text[:SNIP] + "...[truncated]"
+
+
+def render_transcript(messages):
+    parts = []
+    for message in messages:
+        role = message.get("role")
+        if role == "tool":
+            parts.append("TOOL %s result:\n%s" % (message.get("name"), message.get("content") or ""))
+        elif message.get("tool_calls"):
+            blob = json.dumps(message.get("tool_calls"), ensure_ascii=False)
+            parts.append("ASSISTANT tool calls:\n" + blob)
+            if message.get("content"):
+                parts.append("ASSISTANT:\n" + message["content"])
+        else:
+            parts.append("%s:\n%s" % ((role or "message").upper(), message.get("content") or ""))
+    return "\n\n".join(parts)
+
+
+def normalize_usage(usage):
+    if not isinstance(usage, dict):
+        return {}
+    out = {}
+    if "input_tokens" in usage:
+        out["input_tokens"] = usage["input_tokens"]
+    elif "prompt_tokens" in usage:
+        out["input_tokens"] = usage["prompt_tokens"]
+    if "output_tokens" in usage:
+        out["output_tokens"] = usage["output_tokens"]
+    elif "completion_tokens" in usage:
+        out["output_tokens"] = usage["completion_tokens"]
+    if usage.get("cost_usd") is not None:
+        out["cost_usd"] = usage["cost_usd"]
+    else:
+        cost = estimate_cost(out)
+        if cost is not None:
+            out["cost_usd"] = cost
+    return out
+
+
+def estimate_cost(usage):
+    raw_in = os.environ.get("HARNESS_USD_PER_MILLION_IN")
+    raw_out = os.environ.get("HARNESS_USD_PER_MILLION_OUT")
+    if not raw_in or not raw_out:
+        return None
+    try:
+        price_in = float(raw_in)
+        price_out = float(raw_out)
+    except ValueError:
+        return None
+    incoming = float(usage.get("input_tokens") or 0)
+    outgoing = float(usage.get("output_tokens") or 0)
+    return round(incoming / 1e6 * price_in + outgoing / 1e6 * price_out, 8)
+
+
+def run_command(cmd, payload, timeout):
+    try:
+        proc = subprocess.run(
+            cmd,
+            input=json.dumps(payload, ensure_ascii=False),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError("command runner timed out") from exc
+    except OSError as exc:
+        raise RuntimeError("command runner failed to start: " + str(exc)) from exc
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        raise RuntimeError("command runner exited %d: %s" % (proc.returncode, detail[:500]))
+    try:
+        data = json.loads(proc.stdout)
+    except ValueError as exc:
+        raise RuntimeError("command runner stdout is not JSON") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError("command runner JSON must be an object")
+    return CallResult(data.get("content") or "", data.get("tool_calls") or [], normalize_usage(data.get("usage") or {}))
+
+
+def claude_invocation(payload, model, binary):
+    cmd = [binary, "-p", "--output-format", "json"]
+    system = payload.get("system") or ""
+    if system:
+        cmd.extend(["--append-system-prompt", system])
+    if model:
+        cmd.extend(["--model", model])
+    return cmd, render_transcript(payload.get("messages") or [])
+
+
+def parse_claude_stdout(text):
+    raw = (text or "").strip()
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return CallResult(raw, [], {})
+    if isinstance(data, dict):
+        result = data.get("result")
+        if not isinstance(result, str):
+            content = data.get("content")
+            result = content if isinstance(content, str) else raw
+        return CallResult(result, [], normalize_usage(data.get("usage") or {}))
+    return CallResult(raw, [], {})
+
+
+def run_claude(payload, timeout, model):
+    binary = os.environ.get("HARNESS_CLAUDE") or "claude"
+    cmd, prompt = claude_invocation(payload, model, binary)
+    return _run_cli(cmd, prompt, timeout, parse_claude_stdout, "claude")
+
+
+def codex_invocation(payload, model, binary, sandbox):
+    cmd = [binary, "exec", "--json", "--skip-git-repo-check", "--sandbox", sandbox]
+    if model:
+        cmd.extend(["--model", model])
+    prompt = ((payload.get("system") or "") + "\n\n" + render_transcript(payload.get("messages") or [])).strip()
+    cmd.append(prompt)
+    return cmd
+
+
+def codex_event_text(event):
+    if not isinstance(event, dict):
+        return ""
+    item = event.get("item")
+    if isinstance(item, dict) and isinstance(item.get("text"), str):
+        if item.get("type") in ("agent_message", "message", None):
+            return item["text"]
+    if isinstance(event.get("text"), str) and event.get("type") in ("agent_message", "message", "output"):
+        return event["text"]
+    message = event.get("message")
+    if isinstance(message, str):
+        return message
+    if isinstance(message, dict) and isinstance(message.get("content"), str):
+        return message["content"]
+    return ""
+
+
+def parse_codex_stdout(text):
+    raw = (text or "").strip()
+    if not raw:
+        return CallResult("", [], {})
+    if raw.startswith("{") and "\n" not in raw:
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            data = None
+        if isinstance(data, dict) and (data.get("result") or data.get("content")):
+            content = data.get("result") or data.get("content") or ""
+            return CallResult(content if isinstance(content, str) else raw, [], normalize_usage(data.get("usage") or {}))
+    content = ""
+    usage = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        found = codex_event_text(event)
+        if found:
+            content = found
+        if isinstance(event, dict) and isinstance(event.get("usage"), dict):
+            usage = normalize_usage(event["usage"])
+    if content:
+        return CallResult(content, [], usage)
+    return CallResult(raw, [], usage)
+
+
+def run_codex(payload, timeout, model):
+    binary = os.environ.get("HARNESS_CODEX") or "codex"
+    sandbox = os.environ.get("HARNESS_CODEX_SANDBOX") or "read-only"
+    if sandbox not in ("read-only", "workspace-write", "danger-full-access"):
+        raise UsageError("HARNESS_CODEX_SANDBOX must be read-only, workspace-write or danger-full-access")
+    cmd = codex_invocation(payload, model, binary, sandbox)
+    return _run_cli(cmd, None, timeout, parse_codex_stdout, "codex")
+
+
+def _run_cli(cmd, stdin, timeout, parser, label):
+    try:
+        proc = subprocess.run(
+            cmd,
+            input=stdin,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError(label + " timed out") from exc
+    except OSError as exc:
+        raise RuntimeError(label + " failed to start: " + str(exc)) from exc
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        raise RuntimeError("%s exited %d: %s" % (label, proc.returncode, detail[:500]))
+    return parser(proc.stdout)
+
+
+def openai_request(payload, model, base, key, max_tokens):
+    del max_tokens
+    tools = []
+    for tool in payload.get("tools") or []:
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": tool["name"],
+                "description": tool.get("description") or "",
+                "parameters": tool.get("parameters") or {"type": "object", "properties": {}},
+            },
+        })
+    messages = []
+    system = payload.get("system") or ""
+    if system:
+        messages.append({"role": "system", "content": system})
+    for message in payload.get("messages") or []:
+        role = message.get("role")
+        if role == "tool":
+            messages.append({
+                "role": "tool",
+                "tool_call_id": message.get("tool_call_id") or "",
+                "content": message.get("content") or "",
+            })
+        elif message.get("tool_calls"):
+            calls = []
+            for call in message["tool_calls"]:
+                args = call.get("arguments") if isinstance(call.get("arguments"), str) else json.dumps(call.get("arguments") or {})
+                calls.append({
+                    "id": call.get("id") or "call",
+                    "type": "function",
+                    "function": {"name": call.get("name"), "arguments": args},
+                })
+            messages.append({"role": "assistant", "content": message.get("content") or "", "tool_calls": calls})
+        else:
+            messages.append({"role": role, "content": message.get("content") or ""})
+    body = {"model": model, "messages": messages}
+    if tools:
+        body["tools"] = tools
+    url = base.rstrip("/") + "/chat/completions"
+    headers = {"Authorization": "Bearer " + key, "Content-Type": "application/json"}
+    return url, headers, body
+
+
+def parse_openai_response(data):
+    try:
+        message = data["choices"][0]["message"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError("OpenAI response has no message") from exc
+    calls = []
+    for call in message.get("tool_calls") or []:
+        fn = call.get("function") or {}
+        args = fn.get("arguments") or "{}"
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except ValueError:
+                args = {"_raw": args}
+        calls.append({"id": call.get("id") or "call", "name": fn.get("name"), "arguments": args})
+    return CallResult(message.get("content") or "", calls, normalize_usage(data.get("usage") or {}))
+
+
+def anthropic_request(payload, model, base, key, max_tokens):
+    blocks_of = []
+    pending = []
+
+    def flush():
+        if pending:
+            blocks_of.append({"role": "user", "content": list(pending)})
+            pending.clear()
+
+    for message in payload.get("messages") or []:
+        role = message.get("role")
+        if role == "tool":
+            pending.append({
+                "type": "tool_result",
+                "tool_use_id": message.get("tool_call_id") or "",
+                "content": message.get("content") or "",
+            })
+            continue
+        flush()
+        if message.get("tool_calls"):
+            content = []
+            if message.get("content"):
+                content.append({"type": "text", "text": message["content"]})
+            for call in message["tool_calls"]:
+                content.append({
+                    "type": "tool_use",
+                    "id": call.get("id") or "call",
+                    "name": call.get("name"),
+                    "input": call.get("arguments") or {},
+                })
+            blocks_of.append({"role": "assistant", "content": content})
+        else:
+            blocks_of.append({"role": role, "content": message.get("content") or ""})
+    flush()
+    tools = []
+    for tool in payload.get("tools") or []:
+        tools.append({
+            "name": tool["name"],
+            "description": tool.get("description") or "",
+            "input_schema": tool.get("parameters") or {"type": "object", "properties": {}},
+        })
+    body = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "system": payload.get("system") or "",
+        "messages": blocks_of,
+    }
+    if tools:
+        body["tools"] = tools
+    url = base.rstrip("/") + "/v1/messages"
+    headers = {
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+    }
+    return url, headers, body
+
+
+def parse_anthropic_response(data):
+    text = []
+    calls = []
+    for block in data.get("content") or []:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") == "text":
+            text.append(block.get("text") or "")
+        elif block.get("type") == "tool_use":
+            calls.append({
+                "id": block.get("id") or "call",
+                "name": block.get("name"),
+                "arguments": block.get("input") or {},
+            })
+    return CallResult("".join(text), calls, normalize_usage(data.get("usage") or {}))
+
+
+def post_json(url, headers, body, timeout):
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", "replace")[:500]
+        raise RuntimeError("HTTP %s: %s" % (exc.code, detail)) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError("request failed: " + str(exc.reason)) from exc
+    try:
+        return json.loads(raw)
+    except ValueError as exc:
+        raise RuntimeError("API response is not JSON") from exc
+
+
+def api_settings(provider, model):
+    if not model:
+        model = os.environ.get("HARNESS_MODEL") or ""
+    if not model:
+        raise UsageError("set --model or HARNESS_MODEL for the api runner")
+    if provider == "anthropic":
+        key = os.environ.get("ANTHROPIC_API_KEY") or ""
+        base = os.environ.get("ANTHROPIC_BASE_URL") or os.environ.get("HARNESS_API_BASE") or "https://api.anthropic.com"
+        if not key:
+            raise UsageError("ANTHROPIC_API_KEY is not set")
+        return model, base, key
+    key = os.environ.get("HARNESS_API_KEY") or os.environ.get("OPENAI_API_KEY") or ""
+    base = os.environ.get("HARNESS_API_BASE") or os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+    if not key:
+        raise UsageError("OPENAI_API_KEY or HARNESS_API_KEY is not set")
+    return model, base, key
+
+
+def run_api(payload, timeout, provider, model, max_tokens):
+    model, base, key = api_settings(provider, model)
+    if provider == "anthropic":
+        url, headers, body = anthropic_request(payload, model, base, key, max_tokens)
+        data = post_json(url, headers, body, timeout)
+        return parse_anthropic_response(data)
+    url, headers, body = openai_request(payload, model, base, key, max_tokens)
+    data = post_json(url, headers, body, timeout)
+    return parse_openai_response(data)
+
+
+def make_runner(args):
+    kind = args.runner
+    model = args.model or os.environ.get("HARNESS_MODEL") or ""
+    if kind == "command":
+        if not args.runner_cmd:
+            raise UsageError("--runner command needs --runner-cmd")
+        cmd = shlex.split(args.runner_cmd)
+        if not cmd:
+            raise UsageError("--runner-cmd is empty")
+
+        def command_runner(payload, timeout):
+            return run_command(cmd, payload, timeout)
+
+        return command_runner
+    if kind == "claude":
+
+        def claude_runner(payload, timeout):
+            return run_claude(payload, timeout, model)
+
+        return claude_runner
+    if kind == "codex":
+
+        def codex_runner(payload, timeout):
+            return run_codex(payload, timeout, model)
+
+        return codex_runner
+    if kind == "api":
+        # Fail before any call when the key or model is missing.
+        api_settings(args.provider, model)
+
+        def api_runner(payload, timeout):
+            return run_api(payload, timeout, args.provider, model, args.max_tokens)
+
+        return api_runner
+    raise UsageError("unknown runner: " + kind)
+
+
+def call_model(runner, payload, budget, timeout):
+    budget.reserve()
+    try:
+        result = runner(payload, timeout)
+    except (TimeoutError, RuntimeError, UsageError) as exc:
+        budget.note_cost(None)
+        return None, str(exc)
+    if not isinstance(result, CallResult):
+        budget.note_cost(None)
+        return None, "runner returned an unexpected value"
+    budget.note_cost(result.usage)
+    return result, None
+
+
+def run_task(runner, harness, task, workspace, budget, max_turns, timeout):
+    system, tools = assemble_system(harness)
+    messages = [{"role": "user", "content": task_user(task)}]
+    error = ""
+    answer = ""
+    for _turn in range(max_turns):
+        payload = {
+            "role": "agent",
+            "system": system,
+            "messages": messages,
+            "tools": [public_tool(tool) for tool in tools],
+            "meta": {"task_id": task["id"], "split": task["split"]},
+        }
+        result, error = call_model(runner, payload, budget, timeout)
+        if error:
+            break
+        messages.append({
+            "role": "assistant",
+            "content": result.content,
+            "tool_calls": result.tool_calls,
+        })
+        if not result.tool_calls:
+            answer = result.content
+            break
+        for call in result.tool_calls:
+            try:
+                output = dispatch_tool(tools, call, workspace)
+            except (ValueError, UsageError) as exc:
+                output = "error: " + str(exc)
+            messages.append({
+                "role": "tool",
+                "name": call.get("name"),
+                "tool_call_id": call.get("id") or "",
+                "content": str(output),
+            })
+    else:
+        for message in reversed(messages):
+            if message.get("role") == "assistant" and message.get("content"):
+                answer = message["content"]
+                break
+    if error:
+        return {
+            "id": task["id"],
+            "split": task["split"],
+            "passed": False,
+            "answer": "",
+            "error": error,
+            "runner_error": True,
+            "messages": messages,
+        }
+    passed, got, grade_error = grade(task, answer, workspace)
+    return {
+        "id": task["id"],
+        "split": task["split"],
+        "passed": passed,
+        "answer": got,
+        "error": grade_error,
+        "runner_error": False,
+        "messages": messages,
+    }
+
+
+def score_tasks(runner, harness, tasks, work_root, budget, max_turns, timeout):
+    results = []
+    for task in tasks:
+        workspace = make_workspace(task, work_root)
+        results.append(run_task(runner, harness, task, workspace, budget, max_turns, timeout))
+    return results
+
+
+def passed_count(results):
+    return sum(1 for item in results if item["passed"])
+
+
+def failure_view(task, result):
+    messages = []
+    for message in (result.get("messages") or [])[-4:]:
+        messages.append({
+            "role": message.get("role"),
+            "name": message.get("name"),
+            "content": snip(message.get("content") or ""),
+            "tool_calls": message.get("tool_calls") or [],
+        })
+    return {
+        "id": task["id"],
+        "prompt": snip(task["prompt"]),
+        "expect": expect_of(task),
+        "answer": snip(result.get("answer") or ""),
+        "error": result.get("error") or "",
+        "messages": messages,
+    }
+
+
+def optimizer_request(harness, failures):
+    system = (
+        "You edit an agent harness so more train tasks pass. "
+        "You cannot change the tasks or the scorer. "
+        "Return one JSON object and no other text:\n"
+        '{"hypothesis":"why this edit should help","files":{"system.md":"full text"}}\n'
+        "files may include system.md, tools.json and done.md. "
+        "Omit a file to leave it unchanged. "
+        "tools.json is a JSON list of tools. "
+        "Do not paste a train answer into the harness. "
+        "Write a reusable instruction instead."
+    )
+    parts = ["Current harness:"]
+    for name in FILES:
+        parts.append("===== " + name + " =====")
+        parts.append(read_text(Path(harness) / name).rstrip())
+    parts.append("")
+    parts.append("Failed train tasks:")
+    if not failures:
+        parts.append("(none)")
+    for item in failures[:MAX_FAILS]:
+        parts.append("--- " + item["id"] + " ---")
+        parts.append(json.dumps(item, ensure_ascii=False, indent=2))
+    return system, "\n".join(parts) + "\n"
+
+
+def parse_proposal(text):
+    raw = (text or "").strip()
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        raw = "\n".join(lines).strip()
+    data = None
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                data = json.loads(raw[start:end + 1])
+            except ValueError:
+                data = None
+    if not isinstance(data, dict):
+        raise ValueError("optimizer did not return a JSON object")
+    return data
+
+
+def content_to_text(name, content):
+    if name == "tools.json" and not isinstance(content, str):
+        content = json.dumps(content, indent=2, ensure_ascii=False) + "\n"
+    if not isinstance(content, str):
+        raise ValueError(name + " must be text")
+    if not content.strip():
+        raise ValueError(name + " must not be empty")
+    return content
+
+
+def copy_harness(src, dest):
+    dest = Path(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    for name in FILES:
+        shutil.copy2(str(Path(src) / name), str(dest / name))
+
+
+def apply_proposal(parent, proposal, dest):
+    files = proposal.get("files") or {}
+    if not isinstance(files, dict):
+        raise ValueError("files must be an object")
+    for name in files:
+        if name not in FILES:
+            raise ValueError("cannot edit " + name)
+    copy_harness(parent, dest)
+    changed = False
+    for name, content in files.items():
+        text = content_to_text(name, content)
+        current = read_text(Path(dest) / name)
+        if text != current:
+            write_text(Path(dest) / name, text)
+            changed = True
+    try:
+        load_harness(dest)
+    except UsageError as exc:
+        raise ValueError(str(exc)) from exc
+    return changed
+
+
+def harness_diff(parent, child):
+    chunks = []
+    for name in FILES:
+        old = read_text(Path(parent) / name).splitlines(True)
+        new = read_text(Path(child) / name).splitlines(True)
+        chunks.extend(difflib.unified_diff(old, new, fromfile="a/" + name, tofile="b/" + name))
+    return "".join(chunks)
+
+
+def pasted_answers(parent, child, tasks):
+    old = "\n".join(read_text(Path(parent) / name) for name in FILES)
+    new = "\n".join(read_text(Path(child) / name) for name in FILES)
+    hits = []
+    for task in tasks:
+        if task["split"] != "train":
+            continue
+        if task["check"].get("type") == "command":
+            continue
+        expect = expect_of(task)
+        if len(expect) < PASTE_MIN:
+            continue
+        if expect in new and expect not in old:
+            hits.append({"id": task["id"], "expect": expect})
+    return hits
+
+
+def version_name(number):
+    return "v%03d" % number
+
+
+def record_history(path, item):
+    append_jsonl(path, item)
+
+
+def slim_result(result):
+    return {
+        "id": result["id"],
+        "split": result["split"],
+        "passed": result["passed"],
+        "answer": result.get("answer"),
+        "error": result.get("error") or "",
+    }
+
+
+def trace_result(result):
+    messages = []
+    for message in result.get("messages") or []:
+        messages.append({
+            "role": message.get("role"),
+            "name": message.get("name"),
+            "content": snip(message.get("content") or ""),
+            "tool_calls": message.get("tool_calls") or [],
+        })
+    traced = slim_result(result)
+    traced["messages"] = messages
+    return traced
+
+
+def save_scores(dest, results):
+    write_json(Path(dest) / "train.json", [slim_result(item) for item in results])
+    write_json(Path(dest) / "traces.json", [trace_result(item) for item in results])
+
+
+def all_runner_errors(results):
+    return bool(results) and all(item.get("runner_error") for item in results)
+
+
+def runner_error_text(results):
+    for item in results:
+        if item.get("error"):
+            return item["error"]
+    return "runner failed"
+
+
+def score_or_stop(runner, harness, tasks, work, budget, max_turns, timeout, label):
+    results = score_tasks(runner, harness, tasks, work, budget, max_turns, timeout)
+    if all_runner_errors(results):
+        raise StopRun(label + ": " + runner_error_text(results), 1)
+    return results
+
+
+def propose(runner, harness, failures, budget, timeout):
+    system, user = optimizer_request(harness, failures)
+    payload = {
+        "role": "optimizer",
+        "system": system,
+        "messages": [{"role": "user", "content": user}],
+        "tools": [],
+        "meta": {"task_id": "optimizer"},
+    }
+    result, error = call_model(runner, payload, budget, timeout)
+    if error:
+        raise ValueError(error)
+    return parse_proposal(result.content), result.content
+
+
+def dry_run_text(args, tasks):
+    train = [task for task in tasks if task["split"] == "train"]
+    held = [task for task in tasks if task["split"] == "heldout"]
+    lines = [
+        "harness: " + str(args.harness),
+        "tasks: %d train, %d heldout" % (len(train), len(held)),
+        "runner: " + args.runner,
+        "max iterations: %d" % args.max_iterations,
+        "max calls: %d" % args.max_calls,
+        "max cost: %s" % ("none" if args.max_cost is None else args.max_cost),
+        "dry-run: no model calls and no files written",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def format_summary(report, rows):
+    if report.get("baseline_complete", True):
+        lines = [
+            "baseline train: %d/%d" % (report["baseline_train_passed"], report["baseline_train_total"]),
+        ]
+    else:
+        lines = ["baseline train: not finished"]
+    for row in rows:
+        if row["version"] == report["baseline"]:
+            continue
+        label = row.get("train_label") or "n/a"
+        lines.append("%s train: %s %s" % (row["version"], label, row["verdict"]))
+    lines.append("best: " + report["best"])
+    if report["heldout_scored"]:
+        lines.append(
+            "held-out of best: %d/%d (not used to accept edits)"
+            % (report["heldout_passed"], report["heldout_total"])
+        )
+    else:
+        lines.append("held-out of best: not scored (" + report["heldout_reason"] + ")")
+    lines.append("calls: %d" % report["calls"])
+    if report["cost_usd"] is not None:
+        lines.append("cost_usd: %s" % report["cost_usd"])
+    if report["stopped"]:
+        lines.append("stopped: " + report["stopped"])
+    lines.append("out: " + report["out"])
+    return "\n".join(lines) + "\n"
+
+
+def optimize(args):
+    harness = load_harness(args.harness)
+    tasks = load_tasks(args.tasks)
+    train = [task for task in tasks if task["split"] == "train"]
+    held = [task for task in tasks if task["split"] == "heldout"]
+    if not train:
+        raise UsageError("optimize needs at least one train task")
+    if args.max_iterations < 0:
+        raise UsageError("--max-iterations must be >= 0")
+    if args.max_calls < 1 or args.max_turns < 1 or args.timeout < 1:
+        raise UsageError("--max-calls, --max-turns and --timeout must be >= 1")
+    if args.max_cost is not None and args.max_cost <= 0:
+        raise UsageError("--max-cost must be > 0")
+    if args.runner == "command" and not shlex.split(args.runner_cmd or ""):
+        raise UsageError("--runner command needs --runner-cmd")
+    if args.dry_run:
+        sys.stdout.write(dry_run_text(args, tasks))
+        return 0
+    runner = make_runner(args)
+
+    out = Path(args.out) if args.out else Path("harness-repair-runs") / dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    versions = out / "versions"
+    versions.mkdir(parents=True, exist_ok=True)
+    history_path = out / "history.jsonl"
+    budget = Budget(args.max_calls, args.max_cost)
+    rows = []
+    stopped = ""
+    stop_code = 0
+    incumbent_n = 0
+    copy_harness(harness, versions / "v000")
+    work = Path(tempfile.mkdtemp(prefix="harness-repair-"))
+    try:
+        try:
+            base_results = score_or_stop(
+                runner, versions / "v000", train, work / "v000", budget, args.max_turns, args.timeout, "baseline"
+            )
+        except StopRun as exc:
+            stopped = exc.reason
+            report = finish_report(
+                args, out, "v000", "v000", 0, len(train), 0, len(train),
+                False, 0, len(held), exc.reason, budget, stopped, [], rows,
+                False,
+            )
+            write_json(out / "report.json", report)
+            sys.stdout.write(format_summary(report, rows))
+            return exc.code
+        budget.baseline_done = True
+        base_passed = passed_count(base_results)
+        save_scores(versions / "v000", base_results)
+        base_row = {
+            "version": "v000",
+            "parent": None,
+            "hypothesis": "initial harness",
+            "verdict": "baseline",
+            "reason": "",
+            "train_passed": base_passed,
+            "train_total": len(train),
+            "train_label": "%d/%d" % (base_passed, len(train)),
+            "diff": "",
+        }
+        rows.append(base_row)
+        record_history(history_path, base_row)
+        accepted = []
+        next_n = 1
+        for _iteration in range(args.max_iterations):
+            parent_name = version_name(incumbent_n)
+            parent = versions / parent_name
+            parent_passed = current_passed(rows, incumbent_n)
+            failures = []
+            parent_train = json.loads(read_text(parent / "train.json"))
+            by_id = {item["id"]: item for item in parent_train}
+            for task in train:
+                item = by_id.get(task["id"])
+                if item and not item["passed"]:
+                    full = find_full_result(parent, task["id"])
+                    failures.append(failure_view(task, full or item))
+            name = version_name(next_n)
+            dest = versions / name
+            try:
+                proposal, raw = propose(runner, parent, failures, budget, args.timeout)
+            except StopRun as exc:
+                stopped = exc.reason
+                stop_code = exc.code
+                break
+            except ValueError as exc:
+                dest.mkdir(parents=True, exist_ok=True)
+                row = candidate_row(name, parent_name, "", "rejected", str(exc), None, len(train), "")
+                write_json(dest / "verdict.json", row)
+                rows.append(row)
+                record_history(history_path, row)
+                next_n += 1
+                continue
+            dest.mkdir(parents=True, exist_ok=True)
+            write_text(dest / "optimizer.txt", raw)
+            write_json(dest / "proposal.json", proposal)
+            try:
+                changed = apply_proposal(parent, proposal, dest)
+            except ValueError as exc:
+                row = candidate_row(name, parent_name, proposal.get("hypothesis") or "", "rejected", str(exc), None, len(train), "")
+                write_json(dest / "verdict.json", row)
+                rows.append(row)
+                record_history(history_path, row)
+                next_n += 1
+                continue
+            diff = harness_diff(parent, dest)
+            write_text(dest / "diff.patch", diff)
+            hypothesis = proposal.get("hypothesis") or ""
+            if not changed:
+                row = candidate_row(name, parent_name, hypothesis, "rejected", "no harness change", parent_passed, len(train), diff)
+                write_json(dest / "verdict.json", row)
+                rows.append(row)
+                record_history(history_path, row)
+                break
+            if not args.no_answer_screen:
+                hits = pasted_answers(parent, dest, tasks)
+                if hits:
+                    reason = "proposal pastes a train answer: " + ", ".join(hit["expect"] for hit in hits)
+                    row = candidate_row(name, parent_name, hypothesis, "rejected", reason, None, len(train), diff)
+                    write_json(dest / "verdict.json", row)
+                    rows.append(row)
+                    record_history(history_path, row)
+                    next_n += 1
+                    continue
+            try:
+                results = score_or_stop(
+                    runner, dest, train, work / name, budget, args.max_turns, args.timeout, name
+                )
+            except StopRun as exc:
+                row = candidate_row(name, parent_name, hypothesis, "incomplete", exc.reason, None, len(train), diff)
+                write_json(dest / "verdict.json", row)
+                rows.append(row)
+                record_history(history_path, row)
+                stopped = exc.reason
+                stop_code = exc.code
+                break
+            got = passed_count(results)
+            save_scores(dest, results)
+            if got > parent_passed:
+                verdict = "accepted"
+                reason = "train score improved"
+                incumbent_n = next_n
+                accepted.append(name)
+            else:
+                verdict = "rejected"
+                reason = "train score did not improve"
+            row = candidate_row(name, parent_name, hypothesis, verdict, reason, got, len(train), diff)
+            write_json(dest / "verdict.json", row)
+            rows.append(row)
+            record_history(history_path, row)
+            next_n += 1
+        best = version_name(incumbent_n)
+        best_passed = current_passed(rows, incumbent_n)
+        copy_harness(versions / best, out / "best")
+        held_passed = 0
+        held_scored = False
+        held_reason = "no held-out tasks"
+        if held and not stopped:
+            try:
+                held_results = score_or_stop(
+                    runner, versions / best, held, work / "heldout", budget, args.max_turns, args.timeout, "held-out"
+                )
+                held_passed = passed_count(held_results)
+                held_scored = True
+                held_reason = ""
+                write_json(out / "heldout.json", [slim_result(item) for item in held_results])
+            except StopRun as exc:
+                stopped = exc.reason
+                stop_code = exc.code
+                held_reason = exc.reason
+        elif stopped:
+            held_reason = stopped
+        report = finish_report(
+            args, out, "v000", best, base_passed, len(train), best_passed, len(train),
+            held_scored, held_passed, len(held), held_reason, budget, stopped, accepted, rows,
+            True,
+        )
+        write_json(out / "report.json", report)
+        sys.stdout.write(format_summary(report, rows))
+        if stopped:
+            return stop_code
+        return 0
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def current_passed(rows, number):
+    name = version_name(number)
+    for row in reversed(rows):
+        if row["version"] == name and row.get("train_passed") is not None:
+            return row["train_passed"]
+    return 0
+
+
+def find_full_result(version_dir, task_id):
+    path = Path(version_dir) / "traces.json"
+    if not path.is_file():
+        path = Path(version_dir) / "train.json"
+    if not path.is_file():
+        return None
+    for item in json.loads(read_text(path)):
+        if item.get("id") == task_id:
+            item.setdefault("messages", [])
+            return item
+    return None
+
+
+def candidate_row(name, parent, hypothesis, verdict, reason, passed, total, diff):
+    label = "n/a" if passed is None else "%d/%d" % (passed, total)
+    return {
+        "version": name,
+        "parent": parent,
+        "hypothesis": hypothesis,
+        "verdict": verdict,
+        "reason": reason,
+        "train_passed": passed,
+        "train_total": total,
+        "train_label": label,
+        "diff": diff,
+    }
+
+
+def finish_report(args, out, baseline, best, base_passed, base_total, best_passed, best_total,
+                  held_scored, held_passed, held_total, held_reason, budget, stopped, accepted, rows,
+                  baseline_complete):
+    del rows
+    return {
+        "harness": str(args.harness),
+        "tasks": str(args.tasks),
+        "runner": args.runner,
+        "baseline": baseline,
+        "best": best,
+        "baseline_train_passed": base_passed,
+        "baseline_train_total": base_total,
+        "best_train_passed": best_passed,
+        "best_train_total": best_total,
+        "heldout_scored": held_scored,
+        "heldout_passed": held_passed if held_scored else None,
+        "heldout_total": held_total,
+        "heldout_reason": held_reason,
+        "accepted": accepted,
+        "calls": budget.calls,
+        "cost_usd": budget.cost if budget.cost_seen else None,
+        "baseline_complete": baseline_complete,
+        "stopped": stopped or None,
+        "out": str(out),
+    }
+
+
+def run_once(args):
+    harness = load_harness(args.harness)
+    tasks = load_tasks(args.tasks)
+    if args.max_calls < 1 or args.max_turns < 1 or args.timeout < 1:
+        raise UsageError("--max-calls, --max-turns and --timeout must be >= 1")
+    if args.max_cost is not None and args.max_cost <= 0:
+        raise UsageError("--max-cost must be > 0")
+    runner = make_runner(args)
+    budget = Budget(args.max_calls, args.max_cost)
+    work = Path(tempfile.mkdtemp(prefix="harness-repair-"))
+    try:
+        results = score_or_stop(runner, harness, tasks, work, budget, args.max_turns, args.timeout, "run")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    train = [item for item in results if item["split"] == "train"]
+    held = [item for item in results if item["split"] == "heldout"]
+    report = {
+        "runner": args.runner,
+        "train_passed": passed_count(train),
+        "train_total": len(train),
+        "heldout_passed": passed_count(held),
+        "heldout_total": len(held),
+        "calls": budget.calls,
+        "cost_usd": budget.cost if budget.cost_seen else None,
+        "results": [slim_result(item) for item in results],
+    }
+    if args.out:
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        write_json(out / "report.json", report)
+    sys.stdout.write(
+        "train: %d/%d\nheld-out: %d/%d\ncalls: %d\n"
+        % (report["train_passed"], report["train_total"], report["heldout_passed"], report["heldout_total"], report["calls"])
+    )
+    return 0
+
+
+def init_example(args):
+    root = find_examples()
+    dest = Path(args.dir)
+    if dest.exists() and any(dest.iterdir()) and not args.force:
+        raise UsageError(str(dest) + " is not empty. Pass --force to overwrite harness files.")
+    dest.mkdir(parents=True, exist_ok=True)
+    harness = dest / "harness"
+    harness.mkdir(exist_ok=True)
+    for name in FILES:
+        shutil.copy2(str(root / "harness" / name), str(harness / name))
+    for name in ("tasks.jsonl", "mock_runner.py", "README.md"):
+        src = root / name
+        if src.is_file():
+            shutil.copy2(str(src), str(dest / name))
+    sys.stdout.write("copied the example into %s\n" % dest)
+    return 0
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(prog="harness-repair", description="Keep harness edits that raise the train score.")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    init = sub.add_parser("init", help="copy the example harness, tasks and mock runner")
+    init.add_argument("dir")
+    init.add_argument("--force", action="store_true")
+
+    run = sub.add_parser("run", help="score a harness and do not edit it")
+    add_run_flags(run)
+
+    opt = sub.add_parser("optimize", help="propose harness edits and keep a train improvement")
+    add_run_flags(opt)
+    opt.add_argument("--max-iterations", type=int, default=3)
+    opt.add_argument("--dry-run", action="store_true", help="print the plan, call nothing, write nothing")
+    opt.add_argument(
+        "--no-answer-screen",
+        action="store_true",
+        help="allow a proposal that newly pastes a long train answer into the harness",
+    )
+    return parser
+
+
+def add_run_flags(sub):
+    sub.add_argument("--harness", required=True, help="directory with system.md, tools.json and done.md")
+    sub.add_argument("--tasks", required=True, help="tasks.json or tasks.jsonl")
+    sub.add_argument("--runner", required=True, choices=["command", "claude", "codex", "api"])
+    sub.add_argument("--runner-cmd", default="", help="argv for --runner command; JSON protocol on stdin")
+    sub.add_argument("--provider", choices=["openai", "anthropic"], default="openai")
+    sub.add_argument("--model", default="", help="model id; api also reads HARNESS_MODEL")
+    sub.add_argument("--max-turns", type=int, default=4, help="model calls per task")
+    sub.add_argument("--timeout", type=int, default=120, help="seconds per model call")
+    sub.add_argument("--max-calls", type=int, default=40)
+    sub.add_argument("--max-cost", type=float, default=None, help="USD cap; the runner must report cost_usd")
+    sub.add_argument("--max-tokens", type=int, default=1024, help="Anthropic max_tokens")
+    sub.add_argument("--out", default="", help="directory for the report and, for optimize, version history")
+
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        if args.command == "init":
+            return init_example(args)
+        if args.command == "run":
+            return run_once(args)
+        if args.command == "optimize":
+            return optimize(args)
+    except UsageError as exc:
+        sys.stderr.write("harness-repair: %s\n" % exc)
+        return 2
+    except StopRun as exc:
+        sys.stderr.write("harness-repair: %s\n" % exc.reason)
+        return exc.code
+    sys.stderr.write("harness-repair: unknown command\n")
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
