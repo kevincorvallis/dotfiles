@@ -1,0 +1,32 @@
+[
+  {
+    "name": "calc",
+    "description": "Evaluate an arithmetic expression of numbers, parentheses and + - * /.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "expression": {
+          "type": "string",
+          "description": "The expression to evaluate."
+        }
+      },
+      "required": ["expression"]
+    },
+    "impl": "calc"
+  },
+  {
+    "name": "read_file",
+    "description": "Read a UTF-8 text file from the task workspace.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path relative to the workspace."
+        }
+      },
+      "required": ["path"]
+    },
+    "impl": "read_file"
+  }
+]

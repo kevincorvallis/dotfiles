@@ -289,6 +289,25 @@ else
 	done
 fi
 
+# harness-repair has no dependencies, so it must also run on the macOS system python3 (3.9).
+if [ ! -f tests/test_harness_repair.py ]; then
+	fail "harness-repair: behavioral test suite missing"
+elif ! have "$py"; then
+	skip "harness-repair tests: python3 not installed"
+else
+	for p in "$py" /usr/bin/python3; do
+		if [ "$p" = /usr/bin/python3 ] && { [ ! -x "$p" ] || [ "$(command -v "$py")" = "$p" ]; }; then
+			continue
+		fi
+		if "$p" -B -I -m unittest discover -s tests -p 'test_harness_repair.py' > "$T/err" 2>&1; then
+			pass "harness-repair behavioral tests ($("$p" -c 'import platform; print("python " + platform.python_version())'))"
+		else
+			fail "harness-repair behavioral tests ($p)"
+			indent "$T/err"
+		fi
+	done
+fi
+
 # =====================================================================
 section "2. Data files"
 # =====================================================================

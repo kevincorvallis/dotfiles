@@ -22,6 +22,9 @@ Thumbs.db
 .extra
 .gitconfig.local
 
+# Local harness-repair runs (traces and candidate harnesses)
+harness-repair-runs/
+
 # Full Finder exports can contain private folder names and cloud accounts
 .config/finder/favorites.local.txt
 .config/finder/emblem.local.json
